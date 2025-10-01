@@ -1,6 +1,7 @@
 '''
 The following code is a general example that chatgpt gave to help kickstart intergrating
-the microprocessor with the app
+the any microprocessor with an app. Obviously this will be edited with any specifications 
+we are looking for. Just a good launch point. 
 
 Author: Kristin Scott
 Date: Tuesday, September 30, 2025
@@ -127,4 +128,5 @@ class BLEApp(App):
 
 if __name__ == "__main__":
     BLEApp().run()
+
 
