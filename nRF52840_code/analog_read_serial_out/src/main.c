@@ -1,73 +1,70 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/adc.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/sys/printk.h>
-#include <hal/nrf_saadc.h>   // ← needed for NRF_SAADC_INPUT_AINx
+#include <zephyr/sys/util.h>
 
-#define ADC_NODE        DT_NODELABEL(adc)
-#define ADC_RESOLUTION  12
-#define ADC_GAIN        ADC_GAIN_1_6
-#define ADC_REFERENCE   ADC_REF_INTERNAL
-
-/* Define a *value* for acquisition time, don't redefine the macro name */
-#define ADC_ACQ_TIME_VALUE  ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 10)
-
-/* For the dongle: use AIN0 = P0.02 on the edge connector */
-#define ADC_CHANNEL_ID      0
-#define ADC_CHANNEL_INPUT   NRF_SAADC_INPUT_AIN0
-
-static const struct device *adc_dev;
-static int16_t sample_buffer;
-
-/* Channel configuration */
-static const struct adc_channel_cfg channel_cfg = {
-    .gain             = ADC_GAIN,
-    .reference        = ADC_REFERENCE,
-    .acquisition_time = ADC_ACQ_TIME_VALUE,
-    .channel_id       = ADC_CHANNEL_ID,
-#if defined(CONFIG_ADC_CONFIGURABLE_INPUTS)
-    .input_positive   = ADC_CHANNEL_INPUT,
+#if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || \
+    !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
+#error "No suitable devicetree overlay specified"
 #endif
+
+#define DT_SPEC_AND_COMMA(node_id, prop, idx) \
+    ADC_DT_SPEC_GET_BY_IDX(node_id, idx),
+
+static const struct adc_dt_spec adc_channels[] = {
+    DT_FOREACH_PROP_ELEM(DT_PATH(zephyr_user), io_channels,
+                         DT_SPEC_AND_COMMA)
 };
 
-void main(void)
+int main(void)
 {
     int err;
-
-    adc_dev = DEVICE_DT_GET(ADC_NODE);
-    if (!device_is_ready(adc_dev)) {
-        printk("ADC device not ready\n");
-        return;
-    }
-
-    err = adc_channel_setup(adc_dev, &channel_cfg);
-    if (err) {
-        printk("adc_channel_setup failed (%d)\n", err);
-        return;
-    }
-
-    printk("nRF52840 Dongle: SAADC AIN0 -> USB serial\n");
+    int16_t sample;   /* SIGNED buffer */
 
     struct adc_sequence sequence = {
-        .channels    = BIT(ADC_CHANNEL_ID),
-        .buffer      = &sample_buffer,
-        .buffer_size = sizeof(sample_buffer),
-        .resolution  = ADC_RESOLUTION,
+        .buffer = &sample,
+        .buffer_size = sizeof(sample),
     };
 
-    while (1) {
-        err = adc_read(adc_dev, &sequence);
-        if (err) {
-            printk("adc_read failed (%d)\n", err);
-        } else {
-            int32_t raw = sample_buffer;
-
-            /* Vref 0.6 V, gain 1/6 → FS ≈ 3.6 V, 12-bit (0..4095) */
-            int32_t mv = (raw * 3600) / 4095;
-
-            printk("Raw: %4d  |  Voltage: %4d mV\n", (int)raw, (int)mv);
+    for (size_t i = 0; i < ARRAY_SIZE(adc_channels); i++) {
+        if (!adc_is_ready_dt(&adc_channels[i])) {
+            printk("ADC %s not ready\n", adc_channels[i].dev->name);
+            return 0;
         }
 
-        k_sleep(K_MSEC(50));
+        err = adc_channel_setup_dt(&adc_channels[i]);
+        if (err) {
+            printk("Channel setup failed (%d)\n", err);
+            return 0;
+        }
+    }
+
+    while (1) {
+        for (size_t i = 0; i < ARRAY_SIZE(adc_channels); i++) {
+            int32_t mv;
+
+            adc_sequence_init_dt(&adc_channels[i], &sequence);
+            err = adc_read_dt(&adc_channels[i], &sequence);
+            if (err) {
+                printk("adc_read failed (%d)\n", err);
+                continue;
+            }
+
+            /* sample is already signed */
+            mv = sample;
+
+            printk("adc=%d ", sample);
+
+            err = adc_raw_to_millivolts_dt(&adc_channels[i], &mv);
+            if (err == 0) {
+                printk("mv=%d\n", mv);
+            } else {
+                printk("(mV unavailable)\n");
+            }
+        }
+
+        k_sleep(K_MSEC(250));
     }
 }

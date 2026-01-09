@@ -1,0 +1,28 @@
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+
+/ {
+    /* NOTE: this node name must be zephyr,user (comma!) */
+    zephyr,user {
+        io-channels = <&adc 0>;
+    };
+};
+
+&adc {
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@0 {
+        reg = <0>;
+        zephyr,gain = "ADC_GAIN_1_5";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+        zephyr,resolution = <12>;
+        zephyr,input-positive = <NRF_SAADC_AIN0>; /* P0.02 */
+        
+        //For differential measurement, use input-negative.
+        //Note: this will change the adc range to 0-2000 for 0v - 3V
+        //zephyr,input-negative = <NRF_SAADC_GND>;
+    };
+};
