@@ -1,3 +1,4 @@
+Note: since android studios wasn't wanting to add to this respository well I have to upload all the files manually and because there are so many file it was easiest to zip all these files. I know it's annoying but it's all I can do for now. 
 # Bioband Display
 
 **Bioband Display** is an Android application designed to connect to and visualize real-time data from a custom nRF52840-based bio-sensing device. It serves as the mobile interface for a complete embedded system, handling Bluetooth LE communication, data processing, and graphical representation.
@@ -66,4 +67,5 @@ This project demonstrates a full end-to-end data pipeline: from a hardware senso
 This project is maintained and developed as a university capstone project.
 
 -   **Maintainer:** Kristin
+
 -   **Contributors:** We welcome contributions from all team members! Please see the `CONTRIBUTING.md` file (if one exists) for guidelines on how to submit pull requests and contribute to the project.
