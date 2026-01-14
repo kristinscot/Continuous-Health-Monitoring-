@@ -1,0 +1,7 @@
+default: TESTDONGLE
+build_dir: C:/TESTDONGLE/build
+domains:
+  - name: TESTDONGLE
+    build_dir: C:/TESTDONGLE/build/TESTDONGLE
+flash_order:
+  - TESTDONGLE
