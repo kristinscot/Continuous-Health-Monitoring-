@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE-complete.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-build.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-configure.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-download.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-install.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-mkdir.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-patch.rule"
+		},
+		{
+			"file" : "C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"TESTDONGLE"
+		],
+		"name" : "TESTDONGLE"
+	}
+}

@@ -1,0 +1,13 @@
+# Target labels
+ TESTDONGLE
+# Source files and their labels
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/CMakeFiles/TESTDONGLE-complete.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-build.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-configure.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-download.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-install.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-mkdir.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-patch.rule
+C:/TESTDONGLE/build/_sysbuild/sysbuild/images/TESTDONGLE-prefix/src/TESTDONGLE-stamp/TESTDONGLE-update.rule
