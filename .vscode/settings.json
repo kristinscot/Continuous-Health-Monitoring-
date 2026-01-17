@@ -1,6 +1,5 @@
 {
     "nrf-connect.applications": [
-        "${workspaceFolder}\\nRF52840_code\\analog_read_serial_output",
-        "${workspaceFolder}\\nRF52840_code\\analog_read_serial_out"
+        "${workspaceFolder}\\nRF52840_code\\analog_read_serial_output"
     ]
 }
