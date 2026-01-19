@@ -1,0 +1,86 @@
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+
+/ {
+    /* MERGED: keep your ADC io-channels */
+    zephyr,user {
+        io-channels = <&adc 0>;
+    };
+
+    /* ADDED: aliases for 3 LEDs + PWM output */
+    aliases {
+        led0 = &led0_node;
+        led1 = &led1_node;
+        led2 = &led2_node;
+        pwmout = &pwm_out0;
+    };
+
+    /* ADDED: GPIO LED nodes */
+    leds {
+        compatible = "gpio-leds";
+
+        led0_node: led0 {
+            gpios = <&gpio1 10 GPIO_ACTIVE_LOW>; /* P1.10 */
+        };
+
+        led1_node: led1 {
+            gpios = <&gpio1 13 GPIO_ACTIVE_LOW>; /* P1.13 */
+        };
+
+        led2_node: led2 {
+            gpios = <&gpio1 15 GPIO_ACTIVE_LOW>; /* P1.15 */
+        };
+    };
+
+    /* ADDED: a “consumer” node so code can use DT_ALIAS(pwm_out) */
+    pwm_outputs {
+        compatible = "pwm-leds";
+
+        pwm_out0: pwm_out_0 {
+            pwms = <&pwm0 0 1000000 PWM_POLARITY_NORMAL>;
+            /* default period (1 kHz) — you override period in main.c */
+        };
+    };
+};
+
+/* MERGED: your ADC channel config stays exactly the same */
+&adc {
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@0 {
+        reg = <0>;
+        zephyr,gain = "ADC_GAIN_1_5";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+        zephyr,resolution = <12>;
+        zephyr,input-positive = <NRF_SAADC_AIN0>; /* P0.02 */
+
+        /* For differential measurement, use input-negative. */
+        /* zephyr,input-negative = <NRF_SAADC_GND>; */
+    };
+};
+
+/* ADDED: enable PWM0 + route OUT0 to P0.29 */
+&pwm0 {
+    status = "okay";
+    pinctrl-0 = <&pwm0_default>;
+    pinctrl-1 = <&pwm0_sleep>;          /* ADDED */
+    pinctrl-names = "default", "sleep"; /* FIXED */
+};
+
+&pinctrl {
+    pwm0_default: pwm0_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 29)>; /* P0.29 */
+        };
+    };
+
+    pwm0_sleep: pwm0_sleep {            /* ADDED */
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 29)>;
+            low-power-enable;           /* ADDED (recommended) */
+        };
+    };
+};

@@ -1,5 +1,3 @@
-#include <zephyr/dt-bindings/adc/adc.h>
-#include <zephyr/dt-bindings/adc/nrf-saadc.h>
 
 / {
     /* NOTE: this node name must be zephyr,user (comma!) */

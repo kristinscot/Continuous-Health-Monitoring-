@@ -1,0 +1,23 @@
+/ {
+    aliases {
+        led0 = &led0_node;
+        led1 = &led1_node;
+        led2 = &led2_node;
+    };
+
+    leds {
+        compatible = "gpio-leds";
+
+        led0_node: led0 {
+            gpios = <&gpio1 10 GPIO_ACTIVE_LOW>; /* P0.13 */
+        };
+
+        led1_node: led1 {
+            gpios = <&gpio1 13 GPIO_ACTIVE_LOW>; /* P0.14 */
+        };
+
+        led2_node: led2 {
+            gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;/* P0.15 */
+        };
+    };
+};
