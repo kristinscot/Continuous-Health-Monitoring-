@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.example.biobanddisplay"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.biobanddisplay"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -49,10 +49,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        // Specifies the Python version.
         version = "3.10"
-        // configures the python interpreter used for the build process.
-        // It can be a path to the executable, or the name of the executable if it's in the PATH.
         buildPython("C:/Users/Kristin/AppData/Local/Programs/Python/Python310/python.exe")
         pip {
             install("numpy<1.25.0")

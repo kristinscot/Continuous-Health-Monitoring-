@@ -2,7 +2,9 @@ package com.example.biobanddisplay
 
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import com.chaquo.python.Python
 import com.github.mikephil.charting.charts.LineChart
@@ -12,12 +14,14 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet
 import java.util.*
+import kotlin.concurrent.thread
 
 class TestGraphActivity : AppCompatActivity(), BleDataListener {
 
     private lateinit var chart: LineChart
     private lateinit var backButton: Button
     private lateinit var loadCsvButton: Button
+    private lateinit var loadingIndicator: ProgressBar
 
     // Data handling
     private val entries1 = ArrayList<Entry>()
@@ -25,7 +29,6 @@ class TestGraphActivity : AppCompatActivity(), BleDataListener {
     private val entries3 = ArrayList<Entry>()
     
     private var xValueCounter = 0f
-    private val MAX_POINTS = 50 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +37,7 @@ class TestGraphActivity : AppCompatActivity(), BleDataListener {
         chart = findViewById(R.id.chart)
         backButton = findViewById(R.id.btnBack)
         loadCsvButton = findViewById(R.id.btnLoadCsv)
+        loadingIndicator = findViewById(R.id.loadingIndicator)
 
         setupChart()
 
@@ -98,38 +102,58 @@ class TestGraphActivity : AppCompatActivity(), BleDataListener {
     }
     
     private fun loadAndPlotCsvData() {
-        val python = Python.getInstance()
-        val pyModule = python.getModule("test_analyzer")
-        val resultList = pyModule.callAttr("get_csv_data").asList()
+        // Show the loading indicator
+        loadingIndicator.visibility = View.VISIBLE
         
-        entries1.clear()
-        entries2.clear()
-        entries3.clear()
-        
-        val data = chart.data
-        if (data != null) {
-            data.clearValues()
-            chart.notifyDataSetChanged()
-        }
+        // Use a background thread to prevent the UI from freezing
+        thread {
+            try {
+                val python = Python.getInstance()
+                val pyModule = python.getModule("test_analyzer")
+                val resultList = pyModule.callAttr("get_csv_data").asList()
+                
+                val newEntries1 = ArrayList<Entry>()
+                val newEntries2 = ArrayList<Entry>()
+                val newEntries3 = ArrayList<Entry>()
 
-        for (i in resultList.indices) {
-            val row = resultList[i].asList()
-            val xVal = if (row.isNotEmpty()) row[0].toFloat() else i.toFloat()
-            
-            if (row.size > 1) entries1.add(Entry(xVal, row[1].toFloat()))
-            if (row.size > 2) entries2.add(Entry(xVal, row[2].toFloat()))
-            if (row.size > 3) entries3.add(Entry(xVal, row[3].toFloat()))
+                for (i in resultList.indices) {
+                    val row = resultList[i].asList()
+                    val xVal = if (row.isNotEmpty()) row[0].toFloat() else i.toFloat()
+                    
+                    if (row.size > 1) newEntries1.add(Entry(xVal, row[1].toFloat()))
+                    if (row.size > 2) newEntries2.add(Entry(xVal, row[2].toFloat()))
+                    if (row.size > 3) newEntries3.add(Entry(xVal, row[3].toFloat()))
+                }
+
+                // Switch back to the main thread to update the UI
+                runOnUiThread {
+                    entries1.clear()
+                    entries1.addAll(newEntries1)
+                    entries2.clear()
+                    entries2.addAll(newEntries2)
+                    entries3.clear()
+                    entries3.addAll(newEntries3)
+
+                    val sets = ArrayList<ILineDataSet>()
+                    if (entries1.isNotEmpty()) sets.add(createSet(entries1, "ECG", Color.YELLOW))
+                    if (entries2.isNotEmpty()) sets.add(createSet(entries2, "Blood Pressure", Color.CYAN))
+                    
+                    chart.data = LineData(sets)
+                    chart.notifyDataSetChanged()
+                    chart.invalidate()
+                    chart.fitScreen()
+                    chart.moveViewToX(0f)
+                    
+                    // Hide loading indicator
+                    loadingIndicator.visibility = View.GONE
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    loadingIndicator.visibility = View.GONE
+                    // Log or show error toast if needed
+                }
+            }
         }
-        
-        val sets = ArrayList<ILineDataSet>()
-        if (entries1.isNotEmpty()) sets.add(createSet(entries1, "ECG", Color.YELLOW))
-        if (entries2.isNotEmpty()) sets.add(createSet(entries2, "Blood Pressure", Color.CYAN))
-        
-        chart.data = LineData(sets)
-        chart.notifyDataSetChanged()
-        chart.invalidate()
-        chart.fitScreen()
-        chart.moveViewToX(0f)
     }
 
     private fun addEntryToChart(value: Float, datasetIndex: Int) {
