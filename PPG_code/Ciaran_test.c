@@ -3,6 +3,8 @@
 // Purpose: Messing around with code for the nRF52840. Will move this code to a different file or change this description when it is useful
 
 
+// NOTE: Specifications page 926 has details about all the pins and which ones we should use
+
 
 
 
