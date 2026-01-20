@@ -1,0 +1,39 @@
+/ {
+    aliases {
+        sw0 = &sw1;
+        pwm-led0 = &pwm_out0;
+    };
+
+    gpio_keys {
+        compatible = "gpio-keys";
+
+        sw1: sw1 {
+            gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+            label = "SW1 Button";
+        };
+    };
+
+    pwmleds {
+        compatible = "pwm-leds";
+
+        pwm_out0: pwm_out0 {
+            pwms = <&pwm0 0 1000000 0>; /* 1 ms period */
+        };
+    };
+};
+
+&pwm0 {
+    status = "okay";
+    pinctrl-0 = <&pwm0_p029>;
+    pinctrl-1 = <&pwm0_p029>;
+    pinctrl-names = "default", "sleep";
+};
+
+&pinctrl {
+    pwm0_p029: pwm0_p029 {
+        group1 {
+            /* PWM_OUT0 on port 0, pin 29 */
+            psels = <0x0000001D>;
+        };
+    };
+};
