@@ -46,6 +46,9 @@ int main(void)
 
         idx = (idx + 1) % 3;
         k_msleep(150);  /* speed */
+        printk("idx=%d\n", idx);
+
+
     }
 
     return 0;

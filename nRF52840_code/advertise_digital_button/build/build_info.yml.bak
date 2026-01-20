@@ -1,0 +1,6 @@
+west:
+  command: C:\ncs\toolchains\66cdf9b75e\opt\bin\Scripts\west build --build-dir c:/Continuous-Health-Monitoring-/nRF52840_code/advertise_digital_button/build
+    c:/Continuous-Health-Monitoring-/nRF52840_code/advertise_digital_button --pristine
+    --board nrf52840dongle/nrf52840 --no-sysbuild -- -DDEBUG_THREAD_INFO=On -DCONFIG_DEBUG_THREAD_INFO=y
+  topdir: c:\ncs\v3.2.1
+  version: 1.4.0
