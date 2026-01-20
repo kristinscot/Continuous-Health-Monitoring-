@@ -12,12 +12,6 @@
 //Required for high drive
 #include <zephyr/dt-bindings/gpio/nordic-nrf-gpio.h>
 
-// Imported stuff that Tadhg recommended for time stuff (not using)
-// #include <stdio.h>
-#include <zephyr/sys/clock.h> // sys_clock_hw_cycles_per_sec, sys_clock_gettime, SYS_CLOCK_MONOTONIC
-#include <zephyr/posix/time.h> // struct timespec
-
-
 
 
 // Initializing ADC stuff for analog input pin
@@ -59,7 +53,7 @@ static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios); //In
 
 static const int stateDuration[4]  = {1000*1000, 1000*1000, 1000*1000, 1000*1000}; //us
 static const int settlingDuration[4] = {1000*100, 1000*100, 1000*100, 1000*100}; //us
-
+static const int adc_read_delay = 1000*100; //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
 
 
 
@@ -113,7 +107,7 @@ static void turn_state_led_on(int curState)
     }
 }
 
-static void turn_prev_state_led_off(int curState)
+static void turn_prev_state_led_off(int curState) //TODO - would make sense to combine turn_state_led_on and turn_prev_state_led_off
 {
     switch (curState) {
     case 0:
@@ -162,32 +156,19 @@ static int32_t read_adc_chan(int chan) {
 }
 
 
-// Thing Tadhg made for time
-void print_clock_cycles_according_to_timespec(){
-    struct timespec timestamp;
-    int err =   sys_clock_gettime(SYS_CLOCK_MONOTONIC, &timestamp);
-    if(err != 0){
-        printf("COULD NOT GET MONOTONIC CLOCK %d\n", err);
-        return;
-    }
-    double sec_frac = (double)timestamp.tv_sec + ((double)timestamp.tv_nsec)/1.0e9;
-    double cycles = sec_frac * sys_clock_hw_cycles_per_sec();
-    printf("Timstamp in cycles via sys_clock_gettime: %ld\n",(long int)(1.0e9*cycles));
-}
 
 int main(void)
 {
-    
+    // TODO: using 32 bit for storing time. It will overflow after ~4000s. So we need to be aware of this and deal with overflow
+    uint32_t stateStartTime[4]; //us
+    uint32_t stateEndTime[4]; //us
+    int32_t readsBuffer[4][100]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
+    uint32_t readsBufferTimestamps[4][100]; //us 
+    int readsTaken[4] = {0};
+    long readsRunningTotal[4] = {0}; //Used to compute the average read without fancy filtering
+    int readsAverage[4] = {0}; //TODO - not using this right now. Right now sending running total and getting python to average so I don't need to deal with floats here
 
-    uint64_t stateStartTime[4]; //us
-    uint64_t stateEndTime[4]; //us
-    int32_t sampleBuffer[4][10]; //mV //NOTE: Only need this for initial tests while we want to see all measurements
-    uint64_t sampleBufferTimestamps[4][10]; //us
-    int samplesTaken[4];
-
-
-
-    k_msleep(3000); // wait a minute for stuff to start. Otherwise I miss this print
+    k_msleep(3000); // wait a 3s for stuff to start. Otherwise I miss this print
     printf("Compiled %s at %s %s \n", __FILE__, __DATE__, __TIME__); //This is when *compiled* (helpful for knowing if you successfully uploaded newly compiled code)
 
     //Initial Setup Stuff
@@ -196,7 +177,6 @@ int main(void)
 		k_msleep(1000*10); //Don't quit for 10s, so I can read serial error message
         return -1;
     }
-
     if (init_adc() != 0) {
         printf("MYERROR: Failed to initialize ADC. Quitting main loop\n");
         k_msleep(1000*10); //Don't quit for 10s, so I can read serial error message
@@ -204,77 +184,86 @@ int main(void)
     }
 
     while (1) {
-        for (int i=0 ; i<100000 ; i++) {
-            k_usleep(100);
+
+        for (int state=0; state<4; state++) {
+            // Goes over every state. 0-GreenOn, 1-RedOn, 2-InfraredON, 3-AllOff
+
+            // debug prints
+            printf("\nState %d\n", state);
+            // printf("Time: %u\n", k_cyc_to_us_near32(k_cycle_get_32()));
+            // printf("Cycles: %u\n", k_cycle_get_32());
+            // printf("Conversion Rate: %u\n", sys_clock_hw_cycles_per_sec());
+
+            // Make sure LEDs are in correct state
+            turn_prev_state_led_off(state);
+            turn_state_led_on(state);
+            stateStartTime[state] = k_cyc_to_us_near32(k_cycle_get_32());
+
+            // Reset variables
+            readsTaken[state] = 0;
+            readsRunningTotal[state] = 0;
+
+            
+
+            // Wait settling duration
+            k_usleep(settlingDuration[state]);
+
+
+            // Take Measurements
+            while ((k_cyc_to_us_near32(k_cycle_get_32()) - stateStartTime[state]) < stateDuration[state]) {
+                // Keep taking reads until time for the state is up
+
+                // int readIndex = readsTaken[state];
+                
+                readsBuffer[state][readsTaken[state]] = read_adc_chan(0);
+                if (readsBuffer[state][readsTaken[state]] == -1) {
+                    printf("failed to read adc\n");
+                }
+                readsBufferTimestamps[state][readsTaken[state]] = k_cyc_to_us_near32(k_cycle_get_32()); //TODO optimization, can reduce getting time from 2 times per loop to 1 per loop
+                readsRunningTotal[state] += readsBuffer[state][readsTaken[state]];
+                // printf("mv=%d\n", readsBuffer[state][readsTaken[state]]);
+
+                readsTaken[state] += 1;
+                k_usleep(adc_read_delay);
+            }
+
+            stateEndTime[state] = k_cyc_to_us_near32(k_cycle_get_32());
         }
-        printf("Cycles: %u\n", k_cycle_get_32());
-        printf("Time: %u\n", k_cyc_to_us_near32(k_cycle_get_32()));
-        printf("Conversion Rate: %u\n", sys_clock_hw_cycles_per_sec());
-        
-
-
-
-        // for (int state=0; state<4; state++) {
-        //     // Goes over every state. 0-GreenOn, 1-RedOn, 2-InfraredON, 3-AllOff
-        //     // TODO - Get state start time
-
-        //     // Make sure LEDs are in correct state
-        //     printf("\nState %d\n", state);
-        //     printf("Time: %u\n", k_cyc_to_us_near32(k_cycle_get_32()));
-        //     printf("Cycles: %u\n", k_cycle_get_32());
-        //     printf("Conversion Rate: %u\n", sys_clock_hw_cycles_per_sec());
-        //     turn_prev_state_led_off(state);
-        //     turn_state_led_on(state);
-        //     stateStartTime[state] = k_cyc_to_us_near64(k_cycle_get_64());
-
-            
-
-            
-
-        //     // Wait settling duration
-        //     // k_usleep(settlingDuration[state]);
-
-
-        //     // Take Measurements
-        //     // (TODO - add timing and store timestamp. And add taking multiple samples and add buffer to store multiple samples)
-            
-        //     for (int i=0; i<10; i++) {
-        //         // Take 10 samples   - TODO: will make more sophisticated soon
-                
-        //         sampleBuffer[state][i] = read_adc_chan(0);
-        //         if (sampleBuffer[state][i] == -1) {
-        //             printf("failed to read adc\n");
-        //         }
-        //         sampleBufferTimestamps[state][i] = k_cyc_to_us_near64(k_cycle_get_64());
-                
-        //         printf("mv=%d\n", sampleBuffer[state][i]);
-        //         k_usleep(150); //Temporary for testing
-        //     }
-        //     k_usleep(stateDuration[state]);
-
-            
-
-
-        //     stateEndTime[state] = k_cyc_to_us_near64(k_cycle_get_64());
-        // }
 
         // One sampling period happened, log all the data (print the buffer and the timestamps for things)
+        
+        // Nice debug prints
         // printf("\nNEW SAMPLE\n");
         // for (int state=0; state<4; state++) {
         //     printf("State:%d\n", state);
-        //     printf("stateStartTime:%lld\n", stateStartTime[state]);
-        //     printf("stateEndTime:%lld\n", stateEndTime[state]);
-        //     // for (int sample=0; sample<samplesTaken[state]; sample++)
+        //     printf("stateStartTime:%d\n", stateStartTime[state]);
+        //     printf("stateEndTime:%d\n", stateEndTime[state]);
+        //     printf("readsTaken:%d\n", readsTaken[state]);
+        //     printf("readsRunningTotal:%ld\n", readsRunningTotal[state]);
+        //     // for (int read=0; read<readsTaken[state]; read++)
         // }
-        
 
-
-        // uint64_t stateStartTime[4]; //us
-        // uint64_t stateEndTime[4]; //us
-        // int32_t sampleBuffer[4][10]; //mV //NOTE: Only need this for initial tests while we want to see all measurements
-        // uint64_t sampleBufferTimestamps[4][10]; //us
-
+        // Data prints used to turn into csv
+        // for (int state=0; state<4; state++) {
+        //     // FORMAT - for now doing one sample per line. First X values are for state 0, next X values are for state 1, etc. so total 4X values
+        //     printf("%d,", state); //Can probably remove this one, doing for sanity check
+        //     printf("%u,", stateStartTime[state]);
+        //     printf("%u,", stateEndTime[state]);
+        //     printf("%d,", readsTaken[state]);
+        //     printf("%ld,", readsRunningTotal[state]);
+        //     printf("[");
+        //     for (int read=0; read<readsTaken[state]; read++) {
+        //         printf("%d,", readsBuffer[state][read]);
+        //     }
+        //     printf("],");
+        //     printf("[");
+        //     for (int read=0; read<readsTaken[state]; read++) {
+        //         printf("%u,", readsBufferTimestamps[state][read]);
+        //     }
+        //     printf("]");
+        // }
     }
 
     return 0;
 }
+
