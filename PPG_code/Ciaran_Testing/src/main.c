@@ -204,12 +204,13 @@ int main(void)
     }
 
     while (1) {
-        for (int i=0 ; i<100000 ; i++) {
-            k_usleep(100);
-        }
+        // for (int i=0 ; i<100000 ; i++) {
+        //     k_usleep(100);
+        // }
         printf("Cycles: %u\n", k_cycle_get_32());
         printf("Time: %u\n", k_cyc_to_us_near32(k_cycle_get_32()));
         printf("Conversion Rate: %u\n", sys_clock_hw_cycles_per_sec());
+        k_msleep(1000);
         
 
 

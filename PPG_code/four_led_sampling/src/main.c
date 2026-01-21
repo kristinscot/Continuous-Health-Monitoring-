@@ -54,8 +54,8 @@ static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios); //In
 static const int stateDuration[4]  = {1000*1000, 1000*1000, 1000*1000, 1000*1000}; //us
 static const int settlingDuration[4] = {1000*100, 1000*100, 1000*100, 1000*100}; //us
 static const int adc_read_delay = 1000*100; //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
-
-
+//static const int BUFFER_SIZE = 20;
+#define BUFFER_SIZE 9
 
 //SOME BASIC FUNCTIONS FOR SETTING THINGS UP
 
@@ -162,11 +162,11 @@ int main(void)
     // TODO: using 32 bit for storing time. It will overflow after ~4000s. So we need to be aware of this and deal with overflow
     uint32_t stateStartTime[4]; //us
     uint32_t stateEndTime[4]; //us
-    int32_t readsBuffer[4][100]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
-    uint32_t readsBufferTimestamps[4][100]; //us 
     int readsTaken[4] = {0};
     long readsRunningTotal[4] = {0}; //Used to compute the average read without fancy filtering
-    int readsAverage[4] = {0}; //TODO - not using this right now. Right now sending running total and getting python to average so I don't need to deal with floats here
+    int32_t readsBuffer[4][BUFFER_SIZE]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
+    uint32_t readsBufferTimestamps[4][BUFFER_SIZE]; //us 
+    //int readsAverage[4] = {0}; //TODO - not using this right now. Right now sending running total and getting python to average so I don't need to deal with floats here
 
     k_msleep(3000); // wait a 3s for stuff to start. Otherwise I miss this print
     printf("Compiled %s at %s %s \n", __FILE__, __DATE__, __TIME__); //This is when *compiled* (helpful for knowing if you successfully uploaded newly compiled code)
@@ -189,7 +189,7 @@ int main(void)
             // Goes over every state. 0-GreenOn, 1-RedOn, 2-InfraredON, 3-AllOff
 
             // debug prints
-            printf("\nState %d\n", state);
+            // printf("\nState %d\n", state);
             // printf("Time: %u\n", k_cyc_to_us_near32(k_cycle_get_32()));
             // printf("Cycles: %u\n", k_cycle_get_32());
             // printf("Conversion Rate: %u\n", sys_clock_hw_cycles_per_sec());
@@ -210,7 +210,8 @@ int main(void)
 
 
             // Take Measurements
-            while ((k_cyc_to_us_near32(k_cycle_get_32()) - stateStartTime[state]) < stateDuration[state]) {
+            // TODO - add and condition to avoid overflow
+            while (readsTaken[state]<BUFFER_SIZE && (k_cyc_to_us_near32(k_cycle_get_32()) - stateStartTime[state]) < stateDuration[state]) {
                 // Keep taking reads until time for the state is up
 
                 // int readIndex = readsTaken[state];
@@ -244,24 +245,25 @@ int main(void)
         // }
 
         // Data prints used to turn into csv
-        // for (int state=0; state<4; state++) {
-        //     // FORMAT - for now doing one sample per line. First X values are for state 0, next X values are for state 1, etc. so total 4X values
-        //     printf("%d,", state); //Can probably remove this one, doing for sanity check
-        //     printf("%u,", stateStartTime[state]);
-        //     printf("%u,", stateEndTime[state]);
-        //     printf("%d,", readsTaken[state]);
-        //     printf("%ld,", readsRunningTotal[state]);
-        //     printf("[");
-        //     for (int read=0; read<readsTaken[state]; read++) {
-        //         printf("%d,", readsBuffer[state][read]);
-        //     }
-        //     printf("],");
-        //     printf("[");
-        //     for (int read=0; read<readsTaken[state]; read++) {
-        //         printf("%u,", readsBufferTimestamps[state][read]);
-        //     }
-        //     printf("]");
-        // }
+        for (int state=0; state<4; state++) {
+            int num_samples = readsTaken[state];
+            // FORMAT - for now doing one sample per line. First X values are for state 0, next X values are for state 1, etc. so total 4X values
+            printf("\n%d,", state); //Can probably remove this one, doing for sanity check
+            printf("%u,", stateStartTime[state]);
+            printf("%u,", stateEndTime[state]);
+            printf("%d,", readsTaken[state]);
+            printf("%ld,", readsRunningTotal[state]);
+            printf("[");
+            for (int read=0; read<readsTaken[state]; read++) {
+                printf("%d,", readsBuffer[state][read]); //THIS LINE BREAKS IT FOE SOME REASON????
+            }
+            printf("],");
+            printf("[");
+            for (int read=0; read<readsTaken[state]; read++) {
+                printf("%u,", readsBufferTimestamps[state][read]);
+            }
+            printf("]");
+        }
     }
 
     return 0;
