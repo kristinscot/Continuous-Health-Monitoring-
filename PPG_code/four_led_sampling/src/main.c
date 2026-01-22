@@ -55,7 +55,7 @@ static const int stateDuration[4]  = {1000*1000, 1000*1000, 1000*1000, 1000*1000
 static const int settlingDuration[4] = {1000*100, 1000*100, 1000*100, 1000*100}; //us
 static const int adc_read_delay = 1000*100; //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
 //static const int BUFFER_SIZE = 20;
-#define BUFFER_SIZE 9
+#define BUFFER_SIZE 10
 
 //SOME BASIC FUNCTIONS FOR SETTING THINGS UP
 
@@ -246,23 +246,45 @@ int main(void)
 
         // Data prints used to turn into csv
         for (int state=0; state<4; state++) {
-            int num_samples = readsTaken[state];
-            // FORMAT - for now doing one sample per line. First X values are for state 0, next X values are for state 1, etc. so total 4X values
-            printf("\n%d,", state); //Can probably remove this one, doing for sanity check
+            // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
+            printf("\n\n%d,", state); //Can probably remove this one, doing for sanity check
             printf("%u,", stateStartTime[state]);
             printf("%u,", stateEndTime[state]);
             printf("%d,", readsTaken[state]);
             printf("%ld,", readsRunningTotal[state]);
-            printf("[");
-            for (int read=0; read<readsTaken[state]; read++) {
-                printf("%d,", readsBuffer[state][read]); //THIS LINE BREAKS IT FOE SOME REASON????
+            printf("%d", BUFFER_SIZE); //Could remove this in final version
+            printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+            // printf("\n[");
+            for (int read=0; read<BUFFER_SIZE; read++) {
+                if (read<readsTaken[state]) {
+                    // read is the index of an measurement during this sample
+                    printf("%d,", readsBuffer[state][read]);
+                } else {
+                    // read is an index of an unused part of the buffer
+                    printf("nan,");
+                }
+                // // This comma seperates elements and does not include a comma after the last element
+                // if (read != BUFFER_SIZE) {
+                //     printf(",")
+                // }
             }
-            printf("],");
-            printf("[");
-            for (int read=0; read<readsTaken[state]; read++) {
-                printf("%u,", readsBufferTimestamps[state][read]);
+            // // printf("],");
+            printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+            // // printf("\n[");
+            for (int read=0; read<BUFFER_SIZE; read++) {
+                if (read<readsTaken[state]) {
+                    // read is the index of an measurement during this sample
+                    printf("%u,", readsBufferTimestamps[state][read]);
+                } else {
+                    // read is an index of an unused part of the buffer
+                    printf("nan,");
+                }
+                // // This comma seperates elements and does not include a comma after the last element
+                // if (read != BUFFER_SIZE) {
+                //     printf(",")
+                // }
             }
-            printf("]");
+            // printf("]");
         }
     }
 
