@@ -54,8 +54,7 @@ static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios); //In
 static const int stateDuration[4]  = {1000*1000, 1000*1000, 1000*1000, 1000*1000}; //us
 static const int settlingDuration[4] = {1000*100, 1000*100, 1000*100, 1000*100}; //us
 static const int adc_read_delay = 1000*100; //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
-//static const int BUFFER_SIZE = 20;
-#define BUFFER_SIZE 10
+#define BUFFER_SIZE 12 //TODO - Works for at least up to 12, breaks if 15 or more though... not sure why this is the case
 
 //SOME BASIC FUNCTIONS FOR SETTING THINGS UP
 
@@ -211,20 +210,22 @@ int main(void)
 
             // Take Measurements
             // TODO - add and condition to avoid overflow
-            while (readsTaken[state]<BUFFER_SIZE && (k_cyc_to_us_near32(k_cycle_get_32()) - stateStartTime[state]) < stateDuration[state]) {
+            while ((k_cyc_to_us_near32(k_cycle_get_32()) - stateStartTime[state]) < stateDuration[state]) {
                 // Keep taking reads until time for the state is up
+                if (readsTaken[state]<BUFFER_SIZE) {
+                    // Take a measurement
+                    readsBuffer[state][readsTaken[state]] = read_adc_chan(0);
+                    if (readsBuffer[state][readsTaken[state]] == -1) {
+                        printf("failed to read adc\n");
+                    }
+                    readsBufferTimestamps[state][readsTaken[state]] = k_cyc_to_us_near32(k_cycle_get_32()); //TODO optimization, can reduce getting time from 2 times per loop to 1 per loop
+                    readsRunningTotal[state] += readsBuffer[state][readsTaken[state]];
+                    // printf("mv=%d\n", readsBuffer[state][readsTaken[state]]);
 
-                // int readIndex = readsTaken[state];
-                
-                readsBuffer[state][readsTaken[state]] = read_adc_chan(0);
-                if (readsBuffer[state][readsTaken[state]] == -1) {
-                    printf("failed to read adc\n");
+                    readsTaken[state] += 1;
+                } else {
+                    printf("WARNING: Buffer is not big enough so not sampling for entire sampling time, you should expand BUFFER_SIZE or lengthen adc_read_delay\n");
                 }
-                readsBufferTimestamps[state][readsTaken[state]] = k_cyc_to_us_near32(k_cycle_get_32()); //TODO optimization, can reduce getting time from 2 times per loop to 1 per loop
-                readsRunningTotal[state] += readsBuffer[state][readsTaken[state]];
-                // printf("mv=%d\n", readsBuffer[state][readsTaken[state]]);
-
-                readsTaken[state] += 1;
                 k_usleep(adc_read_delay);
             }
 
@@ -247,7 +248,7 @@ int main(void)
         // Data prints used to turn into csv
         for (int state=0; state<4; state++) {
             // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
-            printf("\n\n%d,", state); //Can probably remove this one, doing for sanity check
+            printf("\n%d,", state); //Can probably remove this one, doing for sanity check
             printf("%u,", stateStartTime[state]);
             printf("%u,", stateEndTime[state]);
             printf("%d,", readsTaken[state]);
@@ -285,6 +286,7 @@ int main(void)
                 // }
             }
             // printf("]");
+            printf("\n");
         }
     }
 
