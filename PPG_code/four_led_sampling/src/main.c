@@ -1,3 +1,7 @@
+// Author: Ciaran McDonald-Jensen
+// Date Created: Early January
+// Purpose: This program cycles between the three LEDs and all being off, and samples the voltage across the photodiode. It prints data to serial which can then be converted to a csv using convert_data_to_csv.py
+
 // Copied from 'digital_out' application
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -51,10 +55,11 @@ static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios); //In
 // NOTE: All 4 element arrays specify one value for each 'state'.
 // Each sampling period goes over all 4 states of 0-GreenOn, 1-RedOn, 2-InfraredON, 3-AllOff
 
-static const int stateDuration[4]  = {1000*1000, 1000*1000, 1000*1000, 1000*1000}; //us
-static const int settlingDuration[4] = {1000*100, 1000*100, 1000*100, 1000*100}; //us
-static const int adc_read_delay = 1000*100; //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
-#define BUFFER_SIZE 12 //TODO - Works for at least up to 12, breaks if 15 or more though... not sure why this is the case
+static const int stateDuration[4]  = {1000*5, 1000*5, 1000*5, 1000*5}; //us
+static const int settlingDuration[4] = {500, 500, 500, 500}; //us
+// TODO - should make this all caps
+#define adc_read_delay 500 //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
+#define BUFFER_SIZE 10 //TODO - Works for at least up to 12, breaks if 15 or more though... not sure why this is the case
 
 //SOME BASIC FUNCTIONS FOR SETTING THINGS UP
 
@@ -245,7 +250,7 @@ int main(void)
         //     // for (int read=0; read<readsTaken[state]; read++)
         // }
 
-        // Data prints used to turn into csv
+        // Data prints used to turn into csv V1.0
         for (int state=0; state<4; state++) {
             // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
             printf("\n%d,", state); //Can probably remove this one, doing for sanity check
@@ -253,7 +258,7 @@ int main(void)
             printf("%u,", stateEndTime[state]);
             printf("%d,", readsTaken[state]);
             printf("%ld,", readsRunningTotal[state]);
-            printf("%d", BUFFER_SIZE); //Could remove this in final version
+            printf("%d,", BUFFER_SIZE); //Could remove this in final version
             printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
             // printf("\n[");
             for (int read=0; read<BUFFER_SIZE; read++) {
