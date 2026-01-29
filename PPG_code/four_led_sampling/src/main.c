@@ -12,6 +12,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/logging/log.h>
 
 //Required for high drive
 #include <zephyr/dt-bindings/gpio/nordic-nrf-gpio.h>
@@ -55,11 +56,11 @@ static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios); //In
 // NOTE: All 4 element arrays specify one value for each 'state'.
 // Each sampling period goes over all 4 states of 0-GreenOn, 1-RedOn, 2-InfraredON, 3-AllOff
 
-static const int stateDuration[4]  = {1000*5, 1000*5, 1000*5, 1000*5}; //us
-static const int settlingDuration[4] = {500, 500, 500, 500}; //us
+static const int stateDuration[4]  = {1000*10, 1000*10, 1000*10, 1000*10}; //us
+static const int settlingDuration[4] = {1000, 1000, 1000, 1000}; //us
 // TODO - should make this all caps
-#define adc_read_delay 500 //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
-#define BUFFER_SIZE 10 //TODO - Works for at least up to 12, breaks if 15 or more though... not sure why this is the case
+#define adc_read_delay 50 //us //NOTE: Minimum resolution is ~30us, delay between reads may be more than this (on scale of ~100us), can test code execution time by setting this to 0
+#define BUFFER_SIZE 45
 
 //SOME BASIC FUNCTIONS FOR SETTING THINGS UP
 
@@ -159,7 +160,65 @@ static int32_t read_adc_chan(int chan) {
     }
 }
 
+// TODO - improve this by taking in the value instead of the array
+static void print_state_info(int state, uint32_t stateStartTime[4], uint32_t stateEndTime[4], int readsTaken[4], long readsRunningTotal[4], int32_t readsBuffer[4][BUFFER_SIZE], uint32_t readsBufferTimestamps[4][BUFFER_SIZE]) {
+    // Add tiny delay
+    int PRINT_DELAY = 150; //us //This is temporary small delay added to help print, since the buffer fills fast and this function needs ot slow down
+    k_usleep(PRINT_DELAY);
+    /////// fflush(stdout);
 
+    // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
+    printf("\n%d,", state); //Can probably remove this one, doing for sanity check
+    printf("%u,", stateStartTime[state]);
+    printf("%u,", stateEndTime[state]);
+    printf("%d,", readsTaken[state]);
+    printf("%ld,", readsRunningTotal[state]);
+    printf("%d,", BUFFER_SIZE); //Could remove this in final version
+    printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+    // printf("\n[");
+    /////// fflush(stdout);
+    for (int read=0; read<BUFFER_SIZE; read++) {
+        if (read<readsTaken[state]) {
+            // read is the index of an measurement during this sample
+            printf("%d,", readsBuffer[state][read]);
+        } else {
+            // read is an index of an unused part of the buffer
+            printf("nan,");
+        }
+        /////// fflush(stdout);
+        // // This comma seperates elements and does not include a comma after the last element
+        // if (read != BUFFER_SIZE) {
+        //     printf(",")
+        // }
+    }
+    // // printf("],");
+    printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+    // // printf("\n[");
+    k_usleep(PRINT_DELAY);
+    /////// fflush(stdout);
+    for (int read=0; read<BUFFER_SIZE; read++) {
+        if (read<readsTaken[state]) {
+            // read is the index of an measurement during this sample
+            printf("%u,", readsBufferTimestamps[state][read]);
+        } else {
+            // read is an index of an unused part of the buffer
+            printf("nan,");
+        }
+        /////// fflush(stdout);
+        // // This comma seperates elements and does not include a comma after the last element
+        // if (read != BUFFER_SIZE) {
+        //     printf(",")
+        // }
+    }
+    // printf("]");
+    printf("\n");
+    k_usleep(PRINT_DELAY);
+    /////// fflush(stdout);
+}
+
+// For some reason these make it crash for BUFFER_SIZE ~12-15 and more if in main (TODO - should probably use Malloc, and calculate BUFFER_SIZE based on longest state time and adc_read_delay)
+int32_t readsBuffer[4][BUFFER_SIZE]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
+uint32_t readsBufferTimestamps[4][BUFFER_SIZE]; //us 
 
 int main(void)
 {
@@ -168,8 +227,7 @@ int main(void)
     uint32_t stateEndTime[4]; //us
     int readsTaken[4] = {0};
     long readsRunningTotal[4] = {0}; //Used to compute the average read without fancy filtering
-    int32_t readsBuffer[4][BUFFER_SIZE]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
-    uint32_t readsBufferTimestamps[4][BUFFER_SIZE]; //us 
+    
     //int readsAverage[4] = {0}; //TODO - not using this right now. Right now sending running total and getting python to average so I don't need to deal with floats here
 
     k_msleep(3000); // wait a 3s for stuff to start. Otherwise I miss this print
@@ -208,6 +266,9 @@ int main(void)
             readsRunningTotal[state] = 0;
 
             
+            // print_state_info(state, stateStartTime, stateEndTime, readsTaken, readsRunningTotal, readsBuffer, readsBufferTimestamps);
+
+            
 
             // Wait settling duration
             k_usleep(settlingDuration[state]);
@@ -235,6 +296,7 @@ int main(void)
             }
 
             stateEndTime[state] = k_cyc_to_us_near32(k_cycle_get_32());
+            print_state_info(state, stateStartTime, stateEndTime, readsTaken, readsRunningTotal, readsBuffer, readsBufferTimestamps);
         }
 
         // One sampling period happened, log all the data (print the buffer and the timestamps for things)
@@ -250,51 +312,71 @@ int main(void)
         //     // for (int read=0; read<readsTaken[state]; read++)
         // }
 
-        // Data prints used to turn into csv V1.0
-        for (int state=0; state<4; state++) {
-            // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
-            printf("\n%d,", state); //Can probably remove this one, doing for sanity check
-            printf("%u,", stateStartTime[state]);
-            printf("%u,", stateEndTime[state]);
-            printf("%d,", readsTaken[state]);
-            printf("%ld,", readsRunningTotal[state]);
-            printf("%d,", BUFFER_SIZE); //Could remove this in final version
-            printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
-            // printf("\n[");
-            for (int read=0; read<BUFFER_SIZE; read++) {
-                if (read<readsTaken[state]) {
-                    // read is the index of an measurement during this sample
-                    printf("%d,", readsBuffer[state][read]);
-                } else {
-                    // read is an index of an unused part of the buffer
-                    printf("nan,");
-                }
-                // // This comma seperates elements and does not include a comma after the last element
-                // if (read != BUFFER_SIZE) {
-                //     printf(",")
-                // }
-            }
-            // // printf("],");
-            printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+
+        // ----------------------------------------------------------------------------------------
+        // NOTE: (NOW PRINTING AFTER EACH STATE so don't overflow buffer (will delete this if no longer needed))
+        // ----------------------------------------------------------------------------------------
+
+        // Data prints used to turn into csv V1.0 
+        // for (int state=0; state<4; state++) {
+        //     print_state_info(state, stateStartTime, stateEndTime, readsTaken, readsRunningTotal, readsBuffer, readsBufferTimestamps);
+            // // Add tiny delay
+            // int PRINT_DELAY = 150; //us
+            // k_usleep(PRINT_DELAY);
+            // /////// fflush(stdout);
+
+            // // FORMAT - for now doing one sample per 3 lines. First X values are for state 0, next X values are for state 1, etc. so total 4X values
+            // printf("\n%d,", state); //Can probably remove this one, doing for sanity check
+            // printf("%u,", stateStartTime[state]);
+            // printf("%u,", stateEndTime[state]);
+            // printf("%d,", readsTaken[state]);
+            // printf("%ld,", readsRunningTotal[state]);
+            // printf("%d,", BUFFER_SIZE); //Could remove this in final version
+            // printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
             // // printf("\n[");
-            for (int read=0; read<BUFFER_SIZE; read++) {
-                if (read<readsTaken[state]) {
-                    // read is the index of an measurement during this sample
-                    printf("%u,", readsBufferTimestamps[state][read]);
-                } else {
-                    // read is an index of an unused part of the buffer
-                    printf("nan,");
-                }
-                // // This comma seperates elements and does not include a comma after the last element
-                // if (read != BUFFER_SIZE) {
-                //     printf(",")
-                // }
-            }
-            // printf("]");
-            printf("\n");
-        }
+            // /////// fflush(stdout);
+            // for (int read=0; read<BUFFER_SIZE; read++) {
+            //     if (read<readsTaken[state]) {
+            //         // read is the index of an measurement during this sample
+            //         printf("%d,", readsBuffer[state][read]);
+            //     } else {
+            //         // read is an index of an unused part of the buffer
+            //         printf("nan,");
+            //     }
+            //     /////// fflush(stdout);
+            //     // // This comma seperates elements and does not include a comma after the last element
+            //     // if (read != BUFFER_SIZE) {
+            //     //     printf(",")
+            //     // }
+            // }
+            // // // printf("],");
+            // printf("\n"); //The serial terminal adds new lines if line is too long, so breaking up the line
+            // // // printf("\n[");
+            // k_usleep(PRINT_DELAY);
+            // /////// fflush(stdout);
+            // for (int read=0; read<BUFFER_SIZE; read++) {
+            //     if (read<readsTaken[state]) {
+            //         // read is the index of an measurement during this sample
+            //         printf("%u,", readsBufferTimestamps[state][read]);
+            //     } else {
+            //         // read is an index of an unused part of the buffer
+            //         printf("nan,");
+            //     }
+            //     /////// fflush(stdout);
+            //     // // This comma seperates elements and does not include a comma after the last element
+            //     // if (read != BUFFER_SIZE) {
+            //     //     printf(",")
+            //     // }
+            // }
+            // // printf("]");
+            // printf("\n");
+            // k_usleep(PRINT_DELAY);
+            // /////// fflush(stdout);
+        // }
     }
 
     return 0;
 }
 
+// TODO - try to fix printing issue with /////// fflush(stdout) instead of delays
+// /////// fflush(stdout);

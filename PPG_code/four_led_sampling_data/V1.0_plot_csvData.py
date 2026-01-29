@@ -13,9 +13,11 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.backend_bases import PickEvent, MouseButton
 
+US_IN_S = 1000000
+
 # YOU NEED TO REPLACE THIS TO BE THE FILE YOU WANT (Note: Using absolute file path right now) SHOULD BE FORMATTED ONE
 dataFolderPath = "/home/ciaran-mcdj/Documents/School/ELEC4908_Capstone/Code/Continuous-Health-Monitoring-/PPG_code/four_led_sampling_data/Data/"
-dataFilename = "serial-terminal-22012026_182729_formatted.txt"
+dataFilename = "AllLEDs40Reads1-25samplesPerS-28012026_152503_formatted.txt"
 # NOTE: Output file name is same place as input with same name with '_formatted' at end
 if dataFilename[-14:] != "_formatted.txt":
     print("WARNING: Your data_filename doesn't end with '_formatted.txt', make sure you ran this data through convert_data_to_csv")
@@ -127,7 +129,7 @@ with open(dataFolderPath+dataFilename, "r") as csvFile:
 fig = plt.figure()
 ax = fig.add_subplot()
 ax.set_title("Data measured from PPG sensor")
-ax.set_xlabel("Time (us)")
+ax.set_xlabel("Time (s)")
 ax.set_ylabel("Voltage (mV)")
 
 
@@ -157,7 +159,8 @@ for state in [0,1,2,3]:
         text_label = "none"
 
     # Plot the measurements done
-    bufferLine, = ax.plot(allData[state].readsBufferTimestamps, allData[state].readsBuffer, linestyle="", marker=".", label="All Buffer for "+text_label, color=colour)
+    readsBufferTimeStamps_arr = np.array(allData[state].readsBufferTimestamps)
+    bufferLine, = ax.plot(readsBufferTimeStamps_arr/US_IN_S, allData[state].readsBuffer, linestyle="", marker=".", label="All Buffer for "+text_label, color=colour)
     lines.append(bufferLine)
 
     # Plot only the average points (one per sample). This is likely what the final program will keep
@@ -165,21 +168,21 @@ for state in [0,1,2,3]:
     startTimes = np.array(allData[state].stateStartTime)
     endTimes = np.array(allData[state].stateEndTime)
     averageVoltageTimes = np.add(startTimes, endTimes)/2
-    averagePoints, = ax.plot(averageVoltageTimes, averageVoltages, linestyle="", marker="o", label="Average points for "+text_label, color=colour)
+    averagePoints, = ax.plot(averageVoltageTimes/US_IN_S, averageVoltages, linestyle="", marker="o", label="Average points for "+text_label, color=colour)
     lines.append(averagePoints)
 
     # Plot vertical dotted lines representing the start times
-    for startTime in startTimes:
-        ax.vlines(startTime, minVolt, maxVolt, colors=colour, alpha=0.1)
+    # for startTime in startTimes:
+    #     ax.vlines(startTime/US_IN_S, minVolt, maxVolt, colors=colour, alpha=0.1)
     
     # Plot vertical dotted lines representing where data sampling is expected to start
-    EXPECTED_DELAY_TIME = [10000,10000,10000,10000] #us
-    for startTime in startTimes:
-        ax.vlines(startTime+EXPECTED_DELAY_TIME[state], minVolt, maxVolt, colors=colour, alpha=0.1)
+    # EXPECTED_DELAY_TIME = [10000,10000,10000,10000] #us
+    # for startTime in startTimes:
+    #     ax.vlines((startTime+EXPECTED_DELAY_TIME[state])/US_IN_S, minVolt, maxVolt, colors=colour, alpha=0.1)
 
     # Plot vertical dotted lines representing the end times
     # for endTime in endTimes:
-    #     ax.vlines(endTime, minVolt, maxVolt, colors=colour, alpha=0.1)
+    #     ax.vlines(endTime/US_IN_S, minVolt, maxVolt, colors=colour, alpha=0.1)
 
 
 

@@ -7,9 +7,10 @@ print("Program Started")
 
 # YOU NEED TO REPLACE THIS TO BE THE FILE YOU WANT (Note: Using absolute file path right now)
 data_folder_path = "/home/ciaran-mcdj/Documents/School/ELEC4908_Capstone/Code/Continuous-Health-Monitoring-/PPG_code/four_led_sampling_data/Data/"
-data_filename = "serial-terminal-22012026_182729.txt"
+data_filename = "serial-terminal-22012026_144043_formatted.txt"
 # NOTE: Output file name is same place as input with same name with '_formatted' at end
 
+# TODO - throw error (cut out bottom line) if incomplete line at the bottom & also ignore first few lines until first number is state (0, 1, 2, or 3)
 
 with open(data_folder_path+data_filename, "r") as infile, open(data_folder_path+data_filename[:-4]+"_formatted.txt", 'w') as outfile:
     # print(file.read())
