@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
     private lateinit var ppgDataButton: Button
     private lateinit var sweatDataButton: Button
     private lateinit var testDataButton: Button // New button variable
+    private lateinit var journalButton: Button // New button variable
     private lateinit var buttonsContainer: View
 
     // Constants
@@ -75,7 +76,8 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
         showGraphButton = findViewById(R.id.show_graph_button)
         ppgDataButton = findViewById(R.id.ppg_data_button)
         sweatDataButton = findViewById(R.id.sweat_data_button)
-        testDataButton = findViewById(R.id.test_data_button) // Initialize new button
+        testDataButton = findViewById(R.id.test_data_button)
+        journalButton = findViewById(R.id.journal_button)
         buttonsContainer = findViewById(R.id.buttons_container)
 
         // --- Setup Click Listeners ---
@@ -104,6 +106,13 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
             val intent = Intent(this, TestGraphActivity::class.java)
             startActivity(intent)
         }
+
+        journalButton.setOnClickListener {
+            val intent = Intent(this, JournalActivity::class.java)
+            startActivity(intent)
+        }
+        // --- End of Setup ---
+
 
         // Start the permission request flow. Everything else follows from here.
         requestPermissions()
