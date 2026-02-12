@@ -38,6 +38,25 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="On a scale from 1 to 10 how tired are you?"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/tiredness_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter 1-10"
+        android:textColorHint="#888888"
+        android:textColor="#FFFFFF"
+        android:inputType="number"
+        android:backgroundTint="#FFFFFF"
+        android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:text="Date"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
