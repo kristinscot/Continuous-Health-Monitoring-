@@ -4,17 +4,62 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#2C3E50"
-    android:orientation="vertical"
     tools:context=".PpgGraphActivity">
 
-    <!-- The Chart View -->
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/ppg_line_chart"
+    <LinearLayout
+        android:id="@+id/stats_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/back_button_ppg" />
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:weightSum="2">
 
-    <!-- Back to Main Page Button -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Heart Rate"
+                android:textColor="#BDC3C7"
+                android:textSize="18sp" />
+            <TextView
+                android:id="@+id/heart_rate_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-- BPM"
+                android:textColor="@android:color/white"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Blood Flow"
+                android:textColor="#BDC3C7"
+                android:textSize="18sp" />
+            <TextView
+                android:id="@+id/blood_flow_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-- %"
+                android:textColor="@android:color/white"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
     <Button
         android:id="@+id/back_button_ppg"
         android:layout_width="wrap_content"
