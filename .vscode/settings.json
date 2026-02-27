@@ -4,6 +4,7 @@
         "${workspaceFolder}\\nRF52840_code\\analog_read_serial_out",
         "${workspaceFolder}/nRF52840_code/analog_read_serial_out",
         "${workspaceFolder}/PPG_code/Ciaran_Testing",
-        "${workspaceFolder}/PPG_code/four_led_sampling"
+        "${workspaceFolder}/PPG_code/four_led_sampling",
+        "${workspaceFolder}/PPG_code/V2.0_four_led_sampling"
     ]
 }

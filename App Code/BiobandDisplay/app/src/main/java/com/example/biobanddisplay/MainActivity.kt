@@ -47,12 +47,14 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
     private lateinit var showGraphButton: Button
     private lateinit var ppgDataButton: Button
     private lateinit var sweatDataButton: Button
-    private lateinit var testDataButton: Button // New button variable
+    private lateinit var testDataButton: Button
+    private lateinit var realTimeButton: Button
+    private lateinit var journalButton: Button
     private lateinit var buttonsContainer: View
 
     // Constants
     private val SCAN_PERIOD: Long = 15000
-    private val DEVICE_NAME = "Test Device" // <-- IMPORTANT: Make sure this name is correct
+    private val DEVICE_NAME = "Test Device"
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -75,7 +77,9 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
         showGraphButton = findViewById(R.id.show_graph_button)
         ppgDataButton = findViewById(R.id.ppg_data_button)
         sweatDataButton = findViewById(R.id.sweat_data_button)
-        testDataButton = findViewById(R.id.test_data_button) // Initialize new button
+        testDataButton = findViewById(R.id.test_data_button)
+        realTimeButton = findViewById(R.id.real_time_button)
+        journalButton = findViewById(R.id.journal_button)
         buttonsContainer = findViewById(R.id.buttons_container)
 
         // --- Setup Click Listeners ---
@@ -86,7 +90,7 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
             } else {
                 Toast.makeText(this, "Device is disconnected. Please wait.", Toast.LENGTH_SHORT).show()
                 buttonsContainer.visibility = View.GONE
-                startBleScan() // Try to reconnect
+                startBleScan()
             }
         }
 
@@ -100,12 +104,24 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
             startActivity(intent)
         }
 
-        testDataButton.setOnClickListener { // Setup new button listener
+        testDataButton.setOnClickListener {
             val intent = Intent(this, TestGraphActivity::class.java)
             startActivity(intent)
         }
 
-        // Start the permission request flow. Everything else follows from here.
+        realTimeButton.setOnClickListener {
+            val intent = Intent(this, RealTimeActivity::class.java)
+            startActivity(intent)
+        }
+
+        journalButton.setOnClickListener {
+            val intent = Intent(this, JournalActivity::class.java)
+            startActivity(intent)
+        }
+        // --- End of Setup ---
+
+
+        // Start the permission request flow.
         requestPermissions()
         Log.d(TAG, "onCreate: Permission check initiated.")
     }
@@ -177,10 +193,8 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
 
     override fun onResume() {
         super.onResume()
-        // This activity is now the primary listener for connection state
         BleConnectionManager.connectionListener = this
 
-        // If we return and BLE is ready, start a scan
         if (isPythonReady && bluetoothAdapter.isEnabled && !isBleReady && BleConnectionManager.gatt == null) {
             isBleReady = true
             startBleScan()
@@ -189,7 +203,6 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
 
     override fun onPause() {
         super.onPause()
-        // Only clear the listener if this activity is the one that set it
         if (BleConnectionManager.connectionListener == this) {
             BleConnectionManager.connectionListener = null
         }
@@ -244,9 +257,8 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         Log.i(TAG, "Device connected successfully. Discovering services...")
                         statusText.text = "Device Connected!"
-                        buttonsContainer.visibility = View.VISIBLE // Show the button container
+                        buttonsContainer.visibility = View.VISIBLE
 
-                        // Discover services right after connection
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ActivityCompat.checkSelfPermission(
                                 this, Manifest.permission.BLUETOOTH_CONNECT
                             ) != PackageManager.PERMISSION_GRANTED
@@ -259,7 +271,7 @@ class MainActivity : AppCompatActivity(), ConnectionStateListener {
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.w(TAG, "Device disconnected.")
                     statusText.text = "Disconnected. Scanning again..."
-                    buttonsContainer.visibility = View.GONE // Hide the button container
+                    buttonsContainer.visibility = View.GONE
                     isBleReady = true
                     startBleScan()
                 }
