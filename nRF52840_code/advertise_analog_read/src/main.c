@@ -99,7 +99,7 @@ int main(void)
 		.buffer_size = sizeof(sample),
 	};
 
-	/* ---- BLE init ---- */
+	/* ---- BLE init ---- */	
 	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
