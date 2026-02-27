@@ -1,0 +1,20 @@
+/ {
+    gpio_outputs {
+        compatible = "gpio-leds";
+
+        out0: output_0 {
+            gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+            label = "GPIO Output 0";
+        };
+
+        out1: output_1 {
+            gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+            label = "GPIO Output 1";
+        };
+    };
+
+    aliases {
+        gpioout0 = &out0;
+        gpioout1 = &out1;
+    };
+};
