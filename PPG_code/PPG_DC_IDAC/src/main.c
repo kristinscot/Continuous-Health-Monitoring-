@@ -568,7 +568,9 @@ int main(void)
 
                     //calculate new IDAC DC Levels
                     for (size_t i = 0; i < ARRAY_SIZE(state_DC_levels_mv); i++) {
-                        state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count) - V_REF_mV;
+                        // state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count) - V_REF_mV;
+                        // CIARAN MODIFIED THIS LINE
+                        state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count)*(R_INJ_KOHM/R_F_KOHM)
 
                         if (state_DC_levels_mv[i] < V_REF_mV){
                             state_DC_levels_mv[i] = V_REF_mV;
