@@ -11,14 +11,15 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.chaquo.python.PyObject
-import com.chaquo.python.PyException
 import com.chaquo.python.Python
 import java.io.FileOutputStream
+import java.util.Locale
 
 class GraphActivity : AppCompatActivity(), BleDataListener {
 
     private val TAG = "EMG_GRAPH_ACTIVITY"
     private lateinit var vrmsText: TextView
+    private lateinit var tdmfText: TextView
     private lateinit var muscleStatusText: TextView
     private lateinit var backButton: Button
     private val handler = Handler(Looper.getMainLooper())
@@ -32,6 +33,7 @@ class GraphActivity : AppCompatActivity(), BleDataListener {
         setContentView(R.layout.activity_graph)
         
         vrmsText = findViewById(R.id.vrms_text)
+        tdmfText = findViewById(R.id.tdmf_text)
         muscleStatusText = findViewById(R.id.muscle_status_text)
         backButton = findViewById(R.id.back_button_emg)
         
@@ -80,6 +82,7 @@ class GraphActivity : AppCompatActivity(), BleDataListener {
             val resultMap = result.asMap()
 
             val vrms = resultMap[PyObject.fromJava("vrms")]?.toFloat() ?: 0f
+            val tdmf = resultMap[PyObject.fromJava("tdmf")]?.toFloat() ?: 0f
             val isResting = resultMap[PyObject.fromJava("is_resting")]?.toBoolean() ?: true
             val endsInActivation = resultMap[PyObject.fromJava("ends_in_activation")]?.toBoolean() ?: false
 
@@ -91,7 +94,8 @@ class GraphActivity : AppCompatActivity(), BleDataListener {
             packetBuffer.clear()
 
             handler.post {
-                vrmsText.text = String.format("%.2f mV", vrms)
+                vrmsText.text = String.format(Locale.US, "%.2f mV", vrms)
+                tdmfText.text = String.format(Locale.US, "%.0f Hz", tdmf)
                 muscleStatusText.text = if (isResting) "Resting" else "Active"
                 muscleStatusText.setTextColor(if (isResting) Color.WHITE else Color.GREEN)
             }
