@@ -373,10 +373,10 @@ static void sequencer_start(void)
 /* ====================== IDAC HELPER FUNCTIONS ====================== */
 int32_t update_IDAC_ctrl(uint32_t dark_avg_mv){
     //calculate injected current and control voltage
-    int64_t Vdiff_nV = ((int64_t)dark_avg_mv - (int64_t)V_REF_mV)*1000000; //calculate difference (nV)
+    int64_t Vdiff_nV = ((int64_t)dark_avg_mv - (int64_t)V_REF_mV)*1000000; //calculate difference (nV) (this is the total amount of adc measurement voltage that the IDAC is compensating for)
     int64_t Iinj_pA = Vdiff_nV/(int64_t)R_F_KOHM; // calculate injected current (pA)
     int64_t Vdrop_nV = Iinj_pA*(int64_t)R_INJ_KOHM; // calculate the voltage drop across Rinj (nV)
-    int32_t Vcontrol_mV = Vdrop_nV/500000;
+    int32_t Vcontrol_mV = Vdrop_nV*2/1000000;
 
     //clamp at limits
     if (Vcontrol_mV > (int32_t)V_SUPPLY_mV){
@@ -558,6 +558,7 @@ int main(void)
                 );
 
                 for (size_t i=0; i<ARRAY_SIZE(state_DC_levels_mv); i++) {
+                    // IDAC_sample_acc_mv is the sum of the adc readings since last IDAC calculation. When divided by IDAC_sample_count, this gives the average adc reading, the amount that should be additionally offset by the IDAC next time
                     IDAC_sample_acc_mv[i] += st_reading[i];
                 }
                 IDAC_time_acc_us += k_cyc_to_us_floor32(cycle_dt);
@@ -568,9 +569,7 @@ int main(void)
 
                     //calculate new IDAC DC Levels
                     for (size_t i = 0; i < ARRAY_SIZE(state_DC_levels_mv); i++) {
-                        // state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count) - V_REF_mV;
-                        // CIARAN MODIFIED THIS LINE
-                        state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count)*(R_INJ_KOHM/R_F_KOHM)
+                        state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count) - V_REF_mV;
 
                         if (state_DC_levels_mv[i] < V_REF_mV){
                             state_DC_levels_mv[i] = V_REF_mV;
