@@ -74,19 +74,25 @@
                 android:text="Test Data" />
         </LinearLayout>
 
-        <!-- Bottom row -->
+        <!-- Bottom rows -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:layout_gravity="center_horizontal"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <!-- NEW: Journal Button -->
+            <Button
+                android:id="@+id/real_time_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Real Time Activity" />
+
             <Button
                 android:id="@+id/journal_button"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:text="Journal" />
         </LinearLayout>
 
