@@ -9,14 +9,17 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.chaquo.python.PyException
 import com.chaquo.python.Python
+import java.io.File
+import java.util.Locale
 
 class PpgGraphActivity : AppCompatActivity(), BleDataListener {
 
     private val TAG = "PPG_GRAPH_ACTIVITY"
     private lateinit var heartRateText: TextView
-    private lateinit var bloodFlowText: TextView
+    private lateinit var spo2Text: TextView
+    private lateinit var artStiffnessText: TextView
+    private lateinit var breathingRateText: TextView
     private lateinit var backButton: Button
     private val handler = Handler(Looper.getMainLooper())
 
@@ -25,7 +28,9 @@ class PpgGraphActivity : AppCompatActivity(), BleDataListener {
         setContentView(R.layout.activity_ppg_graph)
         
         heartRateText = findViewById(R.id.heart_rate_text)
-        bloodFlowText = findViewById(R.id.blood_flow_text)
+        spo2Text = findViewById(R.id.spo2_text)
+        artStiffnessText = findViewById(R.id.art_stiffness_text)
+        breathingRateText = findViewById(R.id.breathing_rate_text)
         backButton = findViewById(R.id.back_button_ppg)
 
         backButton.setOnClickListener {
@@ -33,10 +38,11 @@ class PpgGraphActivity : AppCompatActivity(), BleDataListener {
         }
 
         if (BleConnectionManager.gatt == null) {
-            Toast.makeText(this, "Connection lost, returning to main screen.", Toast.LENGTH_LONG).show()
-            finish()
-            return
+            Toast.makeText(this, "Device not connected. Showing stored data.", Toast.LENGTH_SHORT).show()
         }
+        
+        // Initial process to load data from CSV
+        onDataReceived("INITIAL_LOAD")
     }
 
     override fun onResume() {
@@ -55,15 +61,20 @@ class PpgGraphActivity : AppCompatActivity(), BleDataListener {
         try {
             val python = Python.getInstance()
             val analyzerModule = python.getModule("ppg_analyzer")
-            val result = analyzerModule.callAttr("process_ppg_data", data)
-            val resultMap = result.asMap()
+            
+            val csvFile = File(filesDir, "ppg_filtered_data.csv")
+            val result = analyzerModule.callAttr("process_ppg_data", data, csvFile.absolutePath).asMap()
 
-            val heartRate = resultMap[com.chaquo.python.PyObject.fromJava("heart_rate")]?.toInt() ?: 0
-            val bloodFlow = resultMap[com.chaquo.python.PyObject.fromJava("blood_flow")]?.toInt() ?: 0
+            val heartRate = result[com.chaquo.python.PyObject.fromJava("bpm")]?.toFloat() ?: 0f
+            val spo2 = result[com.chaquo.python.PyObject.fromJava("SpO2")]?.toFloat() ?: 0f
+            val artStiffness = result[com.chaquo.python.PyObject.fromJava("artStiffness")]?.toFloat() ?: 0f
+            val breathingRate = result[com.chaquo.python.PyObject.fromJava("breathingRate")]?.toFloat() ?: 0f
 
             handler.post {
-                if (heartRate > 0) heartRateText.text = "$heartRate BPM"
-                if (bloodFlow > 0) bloodFlowText.text = "$bloodFlow %"
+                heartRateText.text = String.format(Locale.US, "%.0f BPM", heartRate)
+                spo2Text.text = String.format(Locale.US, "%.1f %%", spo2)
+                artStiffnessText.text = String.format(Locale.US, "%.2f m/s", artStiffness)
+                breathingRateText.text = String.format(Locale.US, "%.0f BrPM", breathingRate)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing PPG data", e)
