@@ -33,6 +33,7 @@ object BleConnectionManager {
     var testDataListener: BleDataListener? = null // New listener for Test Data
 
     // GATT constants that must match your nRF52840 firmware
+    // will need to change these UUID values based on the particular dongle that is being used
     val SERVICE_UUID: UUID = UUID.fromString("75c276c3-8f97-20bc-a143-b354244886d4")
     // This is the single characteristic that sends both EMG and PPG data
     val NOTIFY_CHARACTERISTIC_UUID: UUID = UUID.fromString("d3d46a35-4394-e9aa-5ae7-921120aad4ed")

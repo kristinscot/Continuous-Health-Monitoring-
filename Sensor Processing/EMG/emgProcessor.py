@@ -1,170 +1,206 @@
-import matplotlib.pyplot as mpl
 import numpy as np
-import csv as csv
-from scipy import signal #used for signal filtering
-from scipy.fft import fft
+import csv
+import matplotlib.pyplot as mpl
+from scipy import signal
+
+# FILL IN CORRECT CSV FILE
+dataPath = r"C:\Users\caitl\OneDrive - Carleton University\Capstone\teraterm_log_jan14.csv"
+
+FS = 13333
+NOTCH_FREQ = 60
+NOTCH_Q = 50
+
+MOVING_AVG_WIN = int(0.150 * FS)   # approx 150 ms window
+END_HOLD_SAMPLES = 800             # 60 ms
+MICRO_NOISE_FLOOR = 3              # noise clipping
 
 MIN_LOG_LENGTH = 5000
+THRESHOLD = 25
 
-voltage = []
-#time = [] #legacy from early datasets where time was present
-mov = [] #holds array of the moving average
-VrmsLog = []
-TDMFLog = []
-startTimeLog = []
-endTimeLog = []
+FREQ_LOW = 20
+FREQ_HIGH = 450
 
-def importCSV(path): #import designated csv for voltage and time values, time may be removed
+STFT_WIN = 2048         # approx 150 ms
+STFT_OVERLAP = 1536     # 75% overlap
+
+# voltage = []
+# VrmsLog = []
+# TDMFLog = []
+# startTimeLog = []
+# endTimeLog = []
+
+# Import designated csv for voltage values
+def importCSV(path):
     voltage = []
-    #time = []
     with open(path, newline='') as csvfile:
         data = list(csv.reader(csvfile))
     for line in data:
-        #time.append(float(line[0])) #because time is not needed
         val = abs(float(line[0]))
-        if(val < 3000):
+        if val < 3000:
             voltage.append(val)
-    return voltage#, time
+    return np.array(voltage)
 
-def movingAverages(voltage):
-    mov = []
-    r = len(voltage)
-    w = 700 #width of the moving average
-    for i  in range(r):
-        if((i+w)>r):
-            w = r-i
-        mov.append(np.average(voltage[i:(i+w)]))
-    return mov
+def notchFilter(voltage, sample_freq, notch_freq, notch_q):
+    b, a = signal.iirnotch(notch_freq, notch_q, sample_freq)
+    return signal.filtfilt(b, a, voltage)
+
+def movingAverage(voltage, window):
+    return np.convolve(voltage, np.ones(window)/window, mode='same')
 
 def rms(voltage):
-    return np.sqrt(sum(np.square(voltage)/len(voltage)))
+    return np.sqrt(np.mean(voltage**2))
 
-def tdmf(voltage, fs):
-    #length of input burst
-    N = len(voltage)
-    #fast fourier transform
-    X = np.fft.fft(voltage)
-    # power spectrum
-    P = np.abs(X)**2 / N   
-    # frequency vector
-    f = np.arange(N) * (fs / N)   
-    # Use only positive frequencies
-    half = np.arange(1, N // 2)
-    igif = P[half]
-    # tdmf = sum(f(half).*P(half)) / sum(P(half))
-    return np.sum(f[half] * P[half]) / np.sum(P[half])
-
-def quantMusclePulse(voltage, fs):
+def detectBursts(voltage, mov, threshold):
+    VrmsLog = []
     startTimeLog = []
     endTimeLog = []
-    VrmsLog = []
-    TDMFLog = []
-    logging = False
-    for i in range(len(voltage)): #iterate through the entire voltage set
-        if(logging == False):
-            if(mov[i] > threshold): #when voltage exceed the threshold begin logging the data
-                logging = True
-                log = []
-                startTimeTemp = i
-        elif(logging == True):
-            log.append(voltage[i])
-            if(mov[i] < threshold): #when voltage drops below threshold cease logging and calculate the RMS and TDMF of the burst which just passed
-                logging = False
-                #log(6)
-                if(len(log) >= MIN_LOG_LENGTH):
-                    endTimeLog.append(i)
-                    startTimeLog.append(startTimeTemp)
-                    #calculate the VRMS
-                    VrmsLog.append(rms(log))
-                    #calculate the TDMF
-                    TDMFLog.append(tdmf(log, fs))
-    return VrmsLog, TDMFLog, startTimeLog, endTimeLog, logging
 
+    logging = False
+    burst = []
+    below_count = 0
+
+    for i in range(len(voltage)): # Iterate through the entire voltage set
+        # If voltage exceeds the threshold and not currently logging, start logging
+        if not logging and mov[i] > threshold:
+            logging = True
+            burst = []
+            start_idx = i
+            below_count = 0
+        # If already logging
+        elif logging:
+            # Append the current voltage value to the current burst
+            burst.append(voltage[i])
+            # If the moving avg drops below the threshold, increment the count of points below the threshold
+            if mov[i] < threshold:
+                below_count += 1
+            else:
+                below_count = 0
+            # Stop logging if the number of moving avg samples below the threshold exceeds a certain amount
+            if below_count >= END_HOLD_SAMPLES:
+                logging = False
+                end_idx = i - END_HOLD_SAMPLES
+                # save the burst if the number of samples in the burst is large enough to be a burst and not just noise
+                if len(burst) >= MIN_LOG_LENGTH:
+                    VrmsLog.append(rms(np.array(burst)))
+                    startTimeLog.append(start_idx)
+                    endTimeLog.append(end_idx)
+
+                burst = []
+                below_count = 0
+
+    return VrmsLog, startTimeLog, endTimeLog, logging
+
+def meanFrequencyFFT(voltage, fs, f_low, f_high):
+    N = len(voltage)
+    X = np.fft.rfft(voltage * np.hanning(N)) # fourier transform
+    Pxx = np.abs(X)**2  # power spectrum
+    f = np.fft.rfftfreq(N, 1/fs)
+
+    band = (f >= f_low) & (f <= f_high)
+    return np.sum(f[band] * Pxx[band]) / np.sum(Pxx[band])
+
+def stftMeanFrequency(voltage, fs, f_low, f_high, nperseg, noverlap):
+    f, t, Zxx = signal.stft(voltage, fs=fs, window='hann', nperseg=nperseg, noverlap=noverlap, padded=False, boundary=None)
+
+    P = np.abs(Zxx)**2
+    band = (f >= f_low) & (f <= f_high)
+
+    f_band = f[band]
+    P_band = P[band, :]
+
+    mnf = np.sum(f_band[:, None] * P_band, axis=0) / np.sum(P_band, axis=0)
+    return t, mnf
 
 def processEMG(dataPath):
-    #will obviously need to be changed to run on individual systems
-    voltage = importCSV(dataPath)
+    raw_voltage = importCSV(dataPath)
 
+    # apply 60 Hz notch filter
+    filtered_voltage = notchFilter(raw_voltage, FS, NOTCH_FREQ, NOTCH_Q)
 
+    # rectify using the mean of the filtered voltage - workaround for not having a consistent reference
+    rectified_voltage = np.abs(filtered_voltage - np.mean(filtered_voltage))
 
+    # set very small voltage values to 0 to clean noise
+    rectified_voltage[rectified_voltage < MICRO_NOISE_FLOOR] = 0
 
-    #60Hz filtering - may not be necessary when driving from nrf+batt
-    #doesn't seem to be working, not too sure why but ultimatley kinda unnecessary 
-    fs = 13333#1/(np.average(np.diff(time))) #will likely be hard coded in final implementation
-    b, a = signal.iirnotch(60, 50, fs) #generate coeffecients of 60Hz filter
-    voltageFilt = signal.filtfilt(b, a, voltage) #filter 60Hz out of voltage signal
+    mov_avg = movingAverage(rectified_voltage, MOVING_AVG_WIN)
 
-    #rectify the voltage measurements
-    av = np.average(voltageFilt) #get average voltage for rectification, could possibly be removed later and hard coded but due to the reference not being set and consistent this is the work around
-    rectV = abs(voltageFilt-av)
+    VrmsLog, startTimeLog, endTimeLog, logging = detectBursts(rectified_voltage, mov_avg, THRESHOLD)
 
-    #legacy threshold setting
-    #t = int(np.ceil(1/(time[2]-time[1])))
-    #av = np.average(voltageFilt[0:t])
-    #stddev = np.std(voltageFilt[0:t])
+    t_stft, mnf_stft = stftMeanFrequency(filtered_voltage, FS, FREQ_LOW, FREQ_HIGH, STFT_WIN, STFT_OVERLAP)
 
-    threshold = 25 #temp value - when final configuration is determined threshold will be hard coded to be slightly above the standard noise level
-    midPulse = False
+    return VrmsLog, t_stft, mnf_stft, logging
 
-    #take moving average of the voltage over the entire dataset
-    mov = movingAverages(rectV) 
+def plot_results():
 
-    #identify and quantify muscle pulses in the dataset
-    VrmsLog, TDMFLog, startTimeLog, endTimeLog, midPulse = quantMusclePulse(rectV, fs)
+    raw_voltage = importCSV(dataPath)
+    filtered_voltage = notchFilter(raw_voltage, FS, NOTCH_FREQ, NOTCH_Q)
+    rectified_voltage = np.abs(filtered_voltage - np.mean(filtered_voltage))
+    rectified_voltage[rectified_voltage < MICRO_NOISE_FLOOR] = 0
+    mov_avg = movingAverage(rectified_voltage, MOVING_AVG_WIN)
+    VrmsLog, startTimeLog, endTimeLog, logging = detectBursts(rectified_voltage, mov_avg, THRESHOLD)
+    t_stft, mnf_stft = stftMeanFrequency(filtered_voltage, FS, FREQ_LOW, FREQ_HIGH, STFT_WIN, STFT_OVERLAP)
 
-    return VrmsLog, TDMFLog, midPulse
+    for i in range(len(VrmsLog)):
+        print(
+            f"Burst {i+1}: "
+            f"VRMS = {VrmsLog[i]:.4f} mV | "
+            f"MNF = {meanFrequencyFFT(filtered_voltage[startTimeLog[i]:endTimeLog[i]], FS, FREQ_LOW, FREQ_HIGH):.1f} Hz |"
+            f"Start time: {startTimeLog[i]*(1/FS):.2f} |"
+            f"End time: {endTimeLog[i]*(1/FS):.2f} | "
+        )
 
-#will obviously need to be changed to run on individual systems
-voltage = importCSV(r"C:\Continuous-Health-Monitoring-\Sensor Processing\EMG\teraterm_log_jan14.csv")
+    time = np.arange(len(raw_voltage)) / FS
+    fig, ax = mpl.subplots()
+    # Plot of RMS voltage
+    ax.plot(time, rectified_voltage, linewidth=0.3, alpha=0.6, label="Rectified EMG")
+    ax.plot(time, mov_avg, linewidth=1.0, label="Moving Average")
+    ax.hlines(THRESHOLD, time[0], time[-1], colors='r', linestyles='--', label="Threshold")
 
-#60Hz filtering - may not be necessary when driving from nrf+batt
-#doesn't seem to be working, not too sure why but ultimatley kinda unnecessary 
-fs = 13333#1/(np.average(np.diff(time))) #will likely be hard coded in final implementation
-b, a = signal.iirnotch(60, 50, fs) #generate coeffecients of 60Hz filter
-voltageFilt = signal.filtfilt(b, a, voltage) #filter 60Hz out of voltage signal
+    # grey background over muscle burst
+    for i, (s, e) in enumerate(zip(startTimeLog, endTimeLog)):
+        ax.axvspan(s/FS, e/FS, color='gray', alpha=0.15)
+        ax.hlines(
+            VrmsLog[i],
+            s/FS,
+            e/FS,
+            linewidth=3,
+            label="RMS Voltage" if i == 0 else None
+        )
 
-#rectify the voltage measurements
-av = np.average(voltageFilt) #get average voltage for rectification, could possibly be removed later and hard coded but due to the reference not being set and consistent this is the work around
-rectV = abs(voltageFilt-av)
+    ax.set_ylim(bottom=0)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Voltage (mV)")
+    ax.set_title("RMS Voltage of Muscle Bursts")
+    ax.legend()
+    mpl.show()
 
-#legacy threshold setting
-#t = int(np.ceil(1/(time[2]-time[1])))
-#av = np.average(voltageFilt[0:t])
-#stddev = np.std(voltageFilt[0:t])
+    # Plot for frequency domain
+    t_stft, mnf_stft = stftMeanFrequency(filtered_voltage, FS, FREQ_LOW, FREQ_HIGH, STFT_WIN, STFT_OVERLAP)
 
-threshold = 25 #temp value - when final configuration is determined threshold will be hard coded to be slightly above the standard noise level
-midPulse = False
+    fig, ax = mpl.subplots()
+    ax.plot(t_stft, mnf_stft, linewidth=1.2, label="STFT Mean Frequency")
 
-#take moving average of the voltage over the entire dataset
-mov = movingAverages(rectV) 
+    # grey background over muscle burst
+    for i, (s, e) in enumerate(zip(startTimeLog, endTimeLog)):
+        ax.axvspan(s/FS, e/FS, color='gray', alpha=0.12)
+        burst_sig = filtered_voltage[s:e]
+        mnf_burst = meanFrequencyFFT(burst_sig, FS, FREQ_LOW, FREQ_HIGH)
+        ax.hlines(
+            mnf_burst,
+            s/FS,
+            e/FS,
+            linewidth=2,
+            color='r',
+            label="Burst Mean Frequency" if i == 0 else None
+        )
 
-#identify and quantify muscle pulses in the dataset
-VrmsLog, TDMFLog, startTimeLog, endTimeLog, midPulse = quantMusclePulse(rectV, fs)
+    ax.set_ylim(bottom=0)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Mean Frequency (Hz)")
+    ax.set_title("Time Dependent Mean Frequency (TDMF)")
+    ax.legend()
+    mpl.show()
 
-#function will ultimately return VrmsLog, TDMFLog and midPulse to app
-#VrmsLog nad TDMFLog should be compared with previous Vrms' and TDMF's and midpulse is used to determine if the last packet of the previous should be repeated to catch the full burst
-# could be better to not have midPulse and instead ignore pulses that start/end between packets 
-#print returned VrmsLog, TDMFLog, midPulse
-for i in range(len(VrmsLog)):
-    print("VRMS: "+str(VrmsLog[i])+"mV, TDMF: "+str(TDMFLog[i]*1000)+"Hz, Start Time: "+str(startTimeLog[i])+"("+str(startTimeLog[i]*(1/fs))+") End Time: "+str(endTimeLog[i])+"("+str(endTimeLog[i]*(1/fs))+")")
-
-#below here graphs and shows the data within pyplot, likely best to remove for app integration
-#plot the rectified voltage and the moving average for visualisation 
-mpl.plot(rectV, 'b')
-#mpl.plot(voltage, 'b')
-mpl.plot(mov, 'g')
-
-maxV = np.max(rectV)
-
-#add lines showing bounds of each muscle burst
-for i in range(len(startTimeLog)):
-    mpl.vlines(startTimeLog[i], 0, maxV, 'r')
-    mpl.vlines(endTimeLog[i], 0, maxV, 'r')
-
-#add line for the threshold for visualisation
-mpl.hlines(threshold, 0, len(voltage), 'r')
-
-#set graph bounds
-mpl.ylim(0, maxV)
-mpl.xlim(0, len(voltage))
-mpl.show()
+if __name__ == "__main__":
+    plot_results()

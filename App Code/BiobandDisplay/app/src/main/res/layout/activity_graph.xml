@@ -6,59 +6,88 @@
     android:background="#2C3E50"
     tools:context=".GraphActivity">
 
-    <LinearLayout
-        android:id="@+id/emg_stats_container"
+    <!-- Scrollable container for stats to ensure they fit -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:weightSum="2">
+        android:layout_centerInParent="true">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/emg_stats_container"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="V(rms)"
-                android:textColor="#BDC3C7"
-                android:textSize="18sp" />
-            <TextView
-                android:id="@+id/vrms_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="-- mV"
-                android:textColor="@android:color/white"
-                android:textSize="32sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+            android:orientation="vertical"
+            android:padding="24dp">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- V(rms) -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Muscle Status"
-                android:textColor="#BDC3C7"
-                android:textSize="18sp" />
-            <TextView
-                android:id="@+id/muscle_status_text"
-                android:layout_width="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:layout_marginBottom="32dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="V(rms)"
+                    android:textColor="#BDC3C7"
+                    android:textSize="18sp" />
+                <TextView
+                    android:id="@+id/vrms_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- mV"
+                    android:textColor="@android:color/white"
+                    android:textSize="48sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- TDMF -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Resting"
-                android:textColor="@android:color/white"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+                android:gravity="center"
+                android:orientation="vertical"
+                android:layout_marginBottom="32dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Mean Frequency (TDMF)"
+                    android:textColor="#BDC3C7"
+                    android:textSize="18sp" />
+                <TextView
+                    android:id="@+id/tdmf_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- Hz"
+                    android:textColor="@android:color/white"
+                    android:textSize="48sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Muscle Status -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Muscle Status"
+                    android:textColor="#BDC3C7"
+                    android:textSize="18sp" />
+                <TextView
+                    android:id="@+id/muscle_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Resting"
+                    android:textColor="@android:color/white"
+                    android:textSize="32sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </ScrollView>
 
     <Button
         android:id="@+id/back_button_emg"

@@ -15,12 +15,25 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PPG Activity"
-            android:textColor="@android:color/white"
-            android:textStyle="bold" />
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PPG Activity"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/ppg_metrics_realtime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="BPM: -- | SpO2: --"
+                android:textColor="#BDC3C7"
+                android:textSize="12sp" />
+        </RelativeLayout>
 
         <com.github.mikephil.charting.charts.LineChart
             android:id="@+id/ppg_chart_realtime"
@@ -41,12 +54,25 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="EMG Activity"
-            android:textColor="@android:color/white"
-            android:textStyle="bold" />
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="EMG Activity"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/emg_metrics_realtime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="Vrms: -- | TDMF: --"
+                android:textColor="#BDC3C7"
+                android:textSize="12sp" />
+        </RelativeLayout>
 
         <com.github.mikephil.charting.charts.LineChart
             android:id="@+id/emg_chart_realtime"
