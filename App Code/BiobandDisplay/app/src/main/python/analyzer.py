@@ -1,98 +1,105 @@
 import numpy as np
 from scipy import signal
+import csv
+import os
 
-# Expert parameters from your updated script
+# Parameters exactly from original script
 FS = 13333
 NOTCH_FREQ = 60
 NOTCH_Q = 50
-MOVING_AVG_WIN = int(0.150 * FS)   # approx 150 ms window
-MICRO_NOISE_FLOOR = 3              # noise clipping
+MOVING_AVG_WIN = int(0.150 * FS)
+MICRO_NOISE_FLOOR = 3
 THRESHOLD = 25
 FREQ_LOW = 20
 FREQ_HIGH = 450
+MIN_LOG_LENGTH = 5000
+END_HOLD_SAMPLES = 800
 
 def rms(voltage):
-    """Calculates the root mean square of the voltage signal."""
     if len(voltage) == 0: return 0.0
     return np.sqrt(np.mean(voltage**2))
 
 def meanFrequencyFFT(voltage, fs, f_low, f_high):
-    """Calculates the mean frequency using RFFT and a Hanning window."""
     N = len(voltage)
     if N < 2: return 0.0
-    # Apply Hanning window to reduce spectral leakage
     X = np.fft.rfft(voltage * np.hanning(N))
-    Pxx = np.abs(X)**2  # power spectrum
+    Pxx = np.abs(X)**2
     f = np.fft.rfftfreq(N, 1/fs)
-
     band = (f >= f_low) & (f <= f_high)
     if np.sum(Pxx[band]) == 0: return 0.0
     return np.sum(f[band] * Pxx[band]) / np.sum(Pxx[band])
 
 def movingAverage(voltage, window):
-    """Calculates moving average using convolution (more efficient)."""
     if len(voltage) == 0: return np.array([])
-    effective_window = min(window, len(voltage))
-    if effective_window < 1: effective_window = 1
-    return np.convolve(voltage, np.ones(effective_window)/effective_window, mode='same')
+    return np.convolve(voltage, np.ones(window)/window, mode='same')
 
-def process_ble_data(raw_data_string):
-    """
-    Processes real-time EMG data using updated expert logic parameters.
-    Returns metrics for display in the Android app.
-    """
+def process_ble_data(raw_data_string, csv_path=None):
     try:
-        # 1. Parse incoming data string
-        values = [float(v) for v in raw_data_string.split(',') if v.strip()]
-        if not values:
-            return {
-                "vrms": 0.0, 
-                "tdmf": 0.0,
-                "is_resting": True, 
-                "voltages": [], 
-                "ends_in_activation": False
-            }
+        voltage_data = []
+        if csv_path and os.path.exists(csv_path):
+            with open(csv_path, newline='') as csvfile:
+                reader = csv.reader(csvfile)
+                next(reader, None)
+                for line in reader:
+                    try:
+                        val = abs(float(line[1])) * 1000 
+                        if val < 3000: voltage_data.append(val)
+                    except: continue
         
-        voltage_data = np.array(values)
+        if not voltage_data and raw_data_string != "INITIAL_LOAD":
+            voltage_data = [abs(float(v)) for v in raw_data_string.split(',') if v.strip()]
+            
+        if not voltage_data:
+            return {"vrms": 0.0, "tdmf": 0.0, "is_resting": True, "mov_avg": [], "rectified": []}
+
+        raw_array = np.array(voltage_data)
         
-        # 2. Notch Filter (60Hz)
         b, a = signal.iirnotch(NOTCH_FREQ, NOTCH_Q, FS)
-        filtered_voltage = signal.filtfilt(b, a, voltage_data)
+        filtered = signal.filtfilt(b, a, raw_array)
+        rectified = np.abs(filtered - np.mean(filtered))
+        rectified[rectified < MICRO_NOISE_FLOOR] = 0
+        mov = movingAverage(rectified, MOVING_AVG_WIN)
+        
+        logging = False
+        last_vrms = 0.0
+        last_mnf = 0.0
+        active_burst = False
+        
+        burst_start = -1
+        below_count = 0
+        for i in range(len(mov)):
+            if not logging and mov[i] > THRESHOLD:
+                logging = True
+                burst_start = i
+                below_count = 0
+            elif logging:
+                if mov[i] < THRESHOLD:
+                    below_count += 1
+                else:
+                    below_count = 0
+                
+                if below_count >= END_HOLD_SAMPLES or i == len(mov) - 1:
+                    logging = False
+                    end_idx = i - below_count
+                    burst_len = end_idx - burst_start
+                    if burst_len >= MIN_LOG_LENGTH:
+                        burst_sig = filtered[burst_start:end_idx]
+                        last_vrms = rms(burst_sig)
+                        last_mnf = meanFrequencyFFT(burst_sig, FS, FREQ_LOW, FREQ_HIGH)
+                        active_burst = True
+        
+        if not active_burst:
+            last_vrms = rms(filtered)
+            last_mnf = meanFrequencyFFT(filtered, FS, FREQ_LOW, FREQ_HIGH)
 
-        # 3. Rectification: abs(voltage - mean)
-        rectified_voltage = np.abs(filtered_voltage - np.mean(filtered_voltage))
-        
-        # 4. Noise clipping
-        rectified_voltage[rectified_voltage < MICRO_NOISE_FLOOR] = 0
-        
-        # 5. Moving Average Envelope
-        mov = movingAverage(rectified_voltage, MOVING_AVG_WIN)
-        
-        # 6. Calculate Metrics
-        # Frequency analysis is typically done on the filtered (unrectified) signal
-        current_vrms = rms(filtered_voltage)
-        current_tdmf = meanFrequencyFFT(filtered_voltage, FS, FREQ_LOW, FREQ_HIGH)
-        
-        # 7. Status Determination
-        is_resting = bool(np.max(mov) < THRESHOLD)
-        
-        # Carry-over flag if chunk ends while muscle is still active
-        ends_in_activation = bool(mov[-1] > THRESHOLD)
-
+        step = max(1, len(mov) // 2000)
         return {
-            "vrms": float(current_vrms),
-            "tdmf": float(current_tdmf),
-            "is_resting": is_resting,
-            "voltages": [float(v) for v in mov], # Envelope values for the graph
-            "ends_in_activation": ends_in_activation
+            "vrms": float(last_vrms),
+            "tdmf": float(last_mnf),
+            "is_resting": not (active_burst or logging),
+            "mov_avg": [float(v) for v in mov[::step]],
+            "rectified": [float(v) for v in rectified[::step]],
         }
 
     except Exception as e:
-        return {
-            "error": str(e),
-            "vrms": 0.0,
-            "tdmf": 0.0,
-            "is_resting": True,
-            "voltages": [],
-            "ends_in_activation": False
-        }
+        return {"error": str(e), "vrms": 0.0, "tdmf": 0.0, "is_resting": True, "mov_avg": [], "rectified": []}
