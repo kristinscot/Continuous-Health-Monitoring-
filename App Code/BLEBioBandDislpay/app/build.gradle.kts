@@ -1,15 +1,16 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.chaquo.python")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.chaquopy.python)
 }
+
 android {
-    namespace = "com.example.altblebiobanddisplay"
+    namespace = "com.example.biobanddisplay"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.altblebiobanddisplay"
+        applicationId = "com.example.biobanddisplay"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -49,8 +50,7 @@ android {
 chaquopy {
     defaultConfig {
         version = "3.10"
-        // ── CHANGE THIS to your local Python 3.10 path ──
-        buildPython("C:/Users/YOUR_USERNAME/AppData/Local/Programs/Python/Python310/python.exe")
+        buildPython("C:/Users/Water/AppData/Local/Programs/Python/Python310/python.exe")
         pip {
             install("numpy<1.25.0")
             install("scipy")
@@ -74,8 +74,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation(libs.material)
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

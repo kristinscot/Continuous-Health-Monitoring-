@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.example.biobanddisplay.ui.theme.BiobandDisplayTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -34,7 +33,7 @@ class MainActivity : ComponentActivity() {
         ble = BleClient(this)
 
         setContent {
-            BiobandDisplayTheme {
+            MaterialTheme {
                 val scope = rememberCoroutineScope()
 
                 // Start Python on first composition
