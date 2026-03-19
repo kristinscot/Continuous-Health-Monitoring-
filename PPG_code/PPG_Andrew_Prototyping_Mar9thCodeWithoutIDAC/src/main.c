@@ -14,6 +14,328 @@
 #include <hal/nrf_ppi.h>
 #include <hal/nrf_timer.h>
 
+/*-------------------------All of the below are initializations for the IMU (until the next comment of this type).*/
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                //keep these global so I can write to them from within a function.
+                typedef struct {
+                int tempx;
+                int tempy;
+                int tempz;
+                } three_ints;
+
+                //Register values
+                /* ----- READ registers ----- */
+                    #define READ_REG1  0x00
+                    #define READ_REG2  0x20
+                    #define READ_REG3  0x01
+                    #define READ_REG4  0x02
+                    #define READ_REG5  0x05
+                    #define READ_REG6  0x16
+                    #define READ_REG7  0x15
+                    #define READ_REG8  0x03
+                    #define READ_REG9  0x04
+                    #define READ_REG10 0x05
+
+                    /* ----- WRITE registers ----- */
+                    #define WRITE_REG1  0x36
+                    #define WRITE_REG2  0x20
+                    #define WRITE_REG3  0x37
+                    #define WRITE_REG4  0x00
+                    #define WRITE_REG5  0x00
+                    #define WRITE_REG6  0x00
+                    #define WRITE_REG7  0x00
+                    #define WRITE_REG8  0x00
+                    #define WRITE_REG9  0x00
+                    #define WRITE_REG10 0x00
+
+                    /* ----- 16‑bit write values ----- */
+                    #define WRITE_VALUE16_1  0x0200
+                    #define WRITE_VALUE16_2  0x4039
+                    #define WRITE_VALUE16_3  0x0001
+                    #define WRITE_VALUE16_4  0x0000
+                    #define WRITE_VALUE16_5  0x0000
+                    #define WRITE_VALUE16_6  0x0000
+                    #define WRITE_VALUE16_7  0x0000
+                    #define WRITE_VALUE16_8  0x0000
+                    #define WRITE_VALUE16_9  0x0000
+                    #define WRITE_VALUE16_10 0x0000
+                //end of Register values
+
+                // SPI configuration details
+                    /*SPI configuration stuff*/
+                    #define WRITE_MSB_FIRST  0
+
+                    /* ---------------------- SPI controller and manual CS pin --------------------- */
+                    #define SPI_CTRL_NODE  DT_NODELABEL(spi1)   /* &spi1 enabled via overlay */
+                    #define CS_GPIO_NODE   DT_NODELABEL(gpio0)  /* &gpio0 */
+                    #define CS_GPIO_PIN    31                   /* Manual CS at P0.29 (active-low) listed at pin 29 in this code*/
+
+                    /* ---------------------- Helper: assert/deassert manual CS -------------------- */
+                    static inline void cs_assert(const struct device *gpio0)
+                    {
+                        /* Active-low CS: drive low to select */
+                        gpio_pin_set(gpio0, CS_GPIO_PIN, 0);
+                    }
+                    static inline void cs_deassert(const struct device *gpio0)
+                    {
+                        /* Drive high to release */
+                        gpio_pin_set(gpio0, CS_GPIO_PIN, 1);
+                    }
+                //end of spi config details
+
+
+                //Write 16 bits to register
+                    static int bmi330_write_reg16(const struct device *spi_dev,
+                                                const struct spi_config *cfg,
+                                                const struct device *gpio0,
+                                                uint8_t base_reg,
+                                                uint16_t value)
+                    {
+                        uint8_t addr_wr = (uint8_t)(base_reg & 0x7F);  /* bit7 = 0 for WRITE */
+                        uint8_t msb = (uint8_t)((value >> 8) & 0xFF);
+                        uint8_t lsb = (uint8_t)( value       & 0xFF);
+                        uint8_t b0 = WRITE_MSB_FIRST ? msb : lsb;      /* LSB first by default */
+                        uint8_t b1 = WRITE_MSB_FIRST ? lsb : msb;
+
+                        uint8_t tx[3] = { addr_wr, b0, b1 };
+                        uint8_t rx[3] = { 0, 0, 0 };                   /* sink */
+
+                        struct spi_buf txb = { .buf = tx, .len = sizeof(tx) };
+                        struct spi_buf rxb = { .buf = rx, .len = sizeof(rx) };
+                        struct spi_buf_set tx_set = { .buffers = &txb, .count = 1 };
+                        struct spi_buf_set rx_set = { .buffers = &rxb, .count = 1 };
+
+                        cs_assert(gpio0);
+                        k_msleep(1);
+                        int ret = spi_transceive(spi_dev, cfg, &tx_set, &rx_set);
+                        cs_deassert(gpio0);
+                        return ret;
+                    }
+                //end of write
+
+                // Read 16 bits
+                    static int bmi330_read_reg16(const struct device *spi_dev,
+                                                const struct spi_config *cfg,
+                                                const struct device *gpio0,
+                                                uint8_t base_reg,
+                                                uint16_t *out)
+                    {
+                        if (!out) return -EINVAL;
+
+                        uint8_t tx[4] = { (uint8_t)(base_reg | 0x80), 0x00, 0x00, 0x00 }; /* bit7=1 for READ */
+                        uint8_t rx[4] = { 0, 0, 0, 0 };
+
+                        struct spi_buf txb = { .buf = tx, .len = sizeof(tx) };
+                        struct spi_buf rxb = { .buf = rx, .len = sizeof(rx) };
+                        struct spi_buf_set tx_set = { .buffers = &txb, .count = 1 };
+                        struct spi_buf_set rx_set = { .buffers = &rxb, .count = 1 };
+
+                        cs_assert(gpio0);
+                        k_msleep(1);
+                        int ret = spi_transceive(spi_dev, cfg, &tx_set, &rx_set);
+                        cs_deassert(gpio0);
+
+
+                        uint8_t zero = rx[0];
+                        uint8_t one = rx[1];
+                        uint8_t two = rx[2];
+                        uint8_t three = rx[3];
+
+
+                    // Combine as unsigned, then cast to signed
+                    uint16_t u16 = ((uint16_t)three << 8) | (uint16_t)two; // e.g., 0x10 0x14 -> 0x1014
+                    int16_t  s16 = (int16_t)u16;                           // two's complement signed
+                    int      value = (int)s16;                              // sign-extended to int
+                    int mg = (int)(( (float)s16 / 4096.0f ) * 1000.0f);  // example for ±8g
+
+                    // Combine and interpret as signed
+                    //int16_t s16 = combine_to_s16_from_big_endian(three, two);
+
+
+                        // printk("                         READ16 reg 0x%02X ->%02X %02X %02X %02X     (As Hex)%02X      As dedimal  %02d      in mg %d \n",
+                        //        base_reg, zero, one, two, three, value, value, mg);
+                        //        //Take special not that %02X prints a 2 letter HEX VALUE, d prints a signed decimal.
+                        // k_msleep(250);//temporary to slow down the printing
+
+
+                        return value;
+                    }
+                //end reading 16 bits
+
+
+
+                //This is the function that I made to read data from the fifo buffer.
+                three_ints bmi330_read_fifo(const struct device *spi_dev,
+                                                const struct spi_config *cfg,
+                                                const struct device *gpio0,
+                                                uint8_t base_reg)
+                {
+                    // if (!outx || !outy || !outz) return -EINVAL;
+                    // The first 8 bytes (4 hex letters) are dummy bytes.
+                    // After that the data is x,y,z in little edian format,  thus FF00 is 255 in decimal.
+
+                    uint8_t tx[8] = {
+                        (uint8_t)(base_reg | 0x80),  // READ command (bit7 = 1)
+                        0x00,0x00,0x00,0x00,0x00,0x00,0x00
+                    };
+                    uint8_t rx[8] = {0};
+
+                    struct spi_buf txb = { .buf = tx, .len = sizeof(tx) };
+                    struct spi_buf rxb = { .buf = rx, .len = sizeof(rx) };
+                    struct spi_buf_set tx_set = { .buffers = &txb, .count = 1 };
+                    struct spi_buf_set rx_set = { .buffers = &rxb, .count = 1 };
+
+                    cs_assert(gpio0);
+                    k_usleep(20);
+                    int ret = spi_transceive(spi_dev, cfg, &tx_set, &rx_set);
+                    cs_deassert(gpio0);
+
+                    // if (ret) {
+                    //     printk("bmi330 burst(8) spi_transceive failed: %d\n", ret);
+                    //     return ret;
+                    // }
+
+                    uint8_t zero = rx[0];
+                    uint8_t one = rx[1];
+                    uint8_t two = rx[2];
+                    uint8_t three = rx[3];
+                    uint8_t four = rx[4];
+                    uint8_t five = rx[5];
+                    uint8_t six = rx[6];
+                    uint8_t seven = rx[7];
+
+
+                    int xnow;
+                    int ynow;
+                    int znow;
+
+
+                    uint16_t u16 = ((uint16_t)three << 8) | (uint16_t)two; // e.g., 0x10 0x14 -> 0x1014
+                    int16_t  s16 = (int16_t)u16;                           // two's complement signed
+                        xnow = (int)s16;                              // sign-extended to int
+
+                    u16 = ((uint16_t)five << 8) | (uint16_t)four; // e.g., 0x10 0x14 -> 0x1014
+                    s16 = (int16_t)u16;                           // two's complement signed
+                        ynow = (int)s16;                              // sign-extended to int
+
+                    u16 = ((uint16_t)seven << 8) | (uint16_t)six; // e.g., 0x10 0x14 -> 0x1014
+                    s16 = (int16_t)u16;                           // two's complement signed
+                        znow = (int)s16;                              // sign-extended to int
+
+                        three_ints out = {xnow,ynow,znow};
+                    // outx=little_endian_to_int(rx[2],rx[3]);
+                    // outy=little_endian_to_int(rx[4],rx[5]);
+                    // outz=little_endian_to_int(rx[6],rx[7]);
+                        
+                    //printk("%d,  ", outy);
+
+                    /* Print all 8 bytes */
+                    //printk("  %02X %02X %02X %02X  %02X %02X %02X %02X\n",
+                        //    rx[0], rx[1], rx[2], rx[3],
+                        //    rx[4], rx[5], rx[6], rx[7]);
+
+                    return out;
+                }
+
+                //needed to initialize spi
+                const struct device *spi_dev = DEVICE_DT_GET(SPI_CTRL_NODE);
+                const struct device *gpio0   = DEVICE_DT_GET(CS_GPIO_NODE);
+                    struct spi_config cfg = {
+                        .frequency = 8000000U,
+                        .operation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_TRANSFER_MSB,
+                        .slave     = 0,
+                        .cs        = NULL, /* manual CS via GPIO */
+                    };
+                //Temporary variables for reading and writing
+                int ret;
+                uint16_t v16;
+
+                int downsampled_IMU();//Prototype to avoid implicit decleration later in code
+
+                //magnitude function so that I can get the magnidue of x,y,x acceleration data.
+                    int magnitude(int x, int y, int z) {
+                        float fx = (float)x;//convert to float so I can do math.
+                        float fy = (float)y;//convert to float so I can do math.
+                        float fz = (float)z;//convert to float so I can do math.
+                        float m = sqrtf(fx*fx + fy*fy + fz*fz);
+                        return (int)m;   // truncate to integer and return.
+                    }
+                //end of magnitude
+
+                //These must be global so that it can use the previous values in the downsampled values.
+                float downsampled_x=0.0;
+                float downsampled_y=0.0;
+                float downsampled_z=0.0;
+
+                // This is my filtered-X LMS algoritm funciton which will be fed the current ppg value and output an adjusted value.
+                int downsampled_IMU(){
+
+                    int fill_level;
+                    int magnitude_of_downsampled;
+
+                    /* ---- READ #7 ---- */ //This checks the FIFO level
+                    fill_level = bmi330_read_reg16(spi_dev, &cfg, gpio0, READ_REG7, &v16);
+                    fill_level=fill_level/3;
+                    k_usleep(20);
+
+                    if (fill_level<37){//checks if there is not way to much data in the buffer.
+                        for(int i=0; i<fill_level; i++){
+                    three_ints myoutput = bmi330_read_fifo(spi_dev, &cfg, gpio0, READ_REG6);
+                    downsampled_x = downsampled_x + (0.6 * (myoutput.tempx - downsampled_x));
+                    downsampled_y = downsampled_y + (0.6 * (myoutput.tempy - downsampled_y));
+                    downsampled_z = downsampled_z + (0.6 * (myoutput.tempz - downsampled_z));
+                    //----------------put the below back in to print stuff.
+                    // printk("Fifo data: ");
+                    // printk("%d,  ", myoutput.tempx);
+                    // printk("%d,  ", myoutput.tempy);
+                    // printk("%d,  ", myoutput.tempz);
+                    // printk("\n");
+                    k_usleep(10);
+                        }
+                    //----------------put the below back in to print stuff.
+                    // printk("Downsampled cast as integers: ");    
+                    // printk("%d,  ", (int)downsampled_x);
+                    // printk("%d,  ", (int)downsampled_y);
+                    // printk("%d,  ", (int)downsampled_z);
+                    // printk("\n");
+
+                    }
+                    else{
+                        /* ---- WRITE #3 ---- *///clear the fifo buffer of it's data, since there is too much currently stored in it.
+                    printk("WRITE16 #3: reg 0x%02X <- 0x%04X\n", WRITE_REG3, WRITE_VALUE16_3);
+                    ret = bmi330_write_reg16(spi_dev, &cfg, gpio0, WRITE_REG3, WRITE_VALUE16_3);
+                    if (ret) { printk("Write #3 failed: %d\n", ret); return; }
+                    k_usleep(10);
+                    downsampled_x=0;
+                    downsampled_y=0;
+                    downsampled_z=2048;//default to 1g so that we don't mess up the data to much just becasue we haven't read recently.
+                }//end of downsampled_IMU function.
+
+                magnitude_of_downsampled = magnitude((int)downsampled_x,(int)downsampled_y,(int)downsampled_z);
+                //----------------put the below back in to print stuff.
+                //printk("Magnitude: ");
+                //k_usleep(10);
+                //printk("%d,  ", magnitude_of_downsampled);
+                //k_usleep(10);
+                //printk("\n");
+
+                printk("Dnsd x,y,z:, %d,  %d,  %d ",
+                    (int)downsampled_x, 
+                    (int)downsampled_y, 
+                    (int)downsampled_z);
+
+                return magnitude_of_downsampled;
+                }
+/*-------------------------All of the above are initializations for the IMU (until the next comment of this type).*/
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
 /* ===================== INITIALIZE ADC CHANNELS ===================== */
 #if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || \
     !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
@@ -471,6 +793,45 @@ static void idac_pwm_ppi_route(void)
 
 int main(void)
 {
+/*Below is some initiation code for the IMU to talk to SPI*/
+            k_msleep(2000);
+
+            /* Resolve devices and make sure drivers are ready */
+
+            if (!device_is_ready(spi_dev)) { printk("SPI not ready\n"); return; }
+            if (!device_is_ready(gpio0))   { printk("GPIO0 not ready\n"); return; }
+
+            /* Manual CS pin setup: idle HIGH (inactive) */
+            gpio_pin_configure(gpio0, CS_GPIO_PIN, GPIO_OUTPUT);
+            gpio_pin_set(gpio0, CS_GPIO_PIN, 1);
+
+            k_msleep(1);
+
+            /* ---- READ #1 ---- */
+            ret = bmi330_read_reg16(spi_dev, &cfg, gpio0, READ_REG1, &v16);
+
+            /* ---- WRITE #1 ---- */
+            printk("WRITE16 #1: reg 0x%02X <- 0x%04X\n", WRITE_REG1, WRITE_VALUE16_1);
+            ret = bmi330_write_reg16(spi_dev, &cfg, gpio0, WRITE_REG1, WRITE_VALUE16_1);
+            k_msleep(1);
+
+            /* ---- WRITE #2 ---- */
+            printk("WRITE16 #2: reg 0x%02X <- 0x%04X\n", WRITE_REG2, WRITE_VALUE16_2);
+            ret = bmi330_write_reg16(spi_dev, &cfg, gpio0, WRITE_REG2, WRITE_VALUE16_2);
+            if (ret) { printk("Write #2 failed: %d\n", ret); return; }
+            k_msleep(1);
+
+            ret = downsampled_IMU();//to help clear out initial junk values from buffer.
+            k_msleep(500);
+            ret = downsampled_IMU();//to help clear out initial junk values from buffer.
+            k_msleep(500);
+/*Above is some initiation code for the IMU to talk to SPI*/
+
+
+
+
+
+
     /* ADC */
     int32_t samples[ARRAY_SIZE(adc_channels)];
     int32_t *p = samples;
@@ -557,6 +918,11 @@ int main(void)
                     (long)ac_reading[2],
                     (long)ac_reading[3]
                 );
+/*Below is the call to get and print the IMU data for this specific time*/
+                    int IMU_mag = downsampled_IMU();
+                    printk(" IMU mag:, %d\n", IMU_mag);
+/*Above is the call to get and print the IMU data for this specific time*/
+
 
                 for (size_t i=0; i<ARRAY_SIZE(state_DC_levels_mv); i++) {
                     // IDAC_sample_acc_mv is the sum of the adc readings since last IDAC calculation. When divided by IDAC_sample_count, this gives the average adc reading, the amount that should be additionally offset by the IDAC next time

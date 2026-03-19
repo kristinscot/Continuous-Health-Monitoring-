@@ -74,4 +74,40 @@
             low-power-enable;
         };
     };
+
+
+
+
+    spi1_default: spi1_default {
+        group1 {
+            psels = <
+                NRF_PSEL(SPIM_SCK, 1, 10)
+                NRF_PSEL(SPIM_MOSI, 1, 13)
+                NRF_PSEL(SPIM_MISO, 1, 15)
+            >;
+        };
+    };
+
+    spi1_sleep: spi1_sleep {
+        group1 {
+            psels = <
+                NRF_PSEL(SPIM_SCK, 1, 10)
+                NRF_PSEL(SPIM_MOSI, 1, 13)
+                NRF_PSEL(SPIM_MISO, 1, 15)
+            >;
+            low-power-enable;
+        };
+    };
+
+
+};
+
+
+
+
+&spi1 {
+    status = "okay";
+    pinctrl-0 = <&spi1_default>;
+    pinctrl-1 = <&spi1_sleep>;
+    pinctrl-names = "default", "sleep";
 };
