@@ -16,6 +16,9 @@
 
 /*-------------------------All of the below are initializations for the IMU (until the next comment of this type).*/
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                #include <zephyr/drivers/spi.h>
+                #include <zephyr/drivers/gpio.h>
+                #include <math.h>//Not actually sure if I need this one.
 
                 //keep these global so I can write to them from within a function.
                 typedef struct {
@@ -320,7 +323,7 @@
                 //k_usleep(10);
                 //printk("\n");
 
-                printk("Dnsd x,y,z:, %d,  %d,  %d ",
+                printk(",IMU->,%d,%d,%d,",
                     (int)downsampled_x, 
                     (int)downsampled_y, 
                     (int)downsampled_z);
@@ -911,7 +914,7 @@ int main(void)
             //check if cycle completed and output cycle stats
             if (st == 0) {
                 
-                printk("%u,%ld,%ld,%ld,%ld\n",
+                printk("%u,%ld,%ld,%ld,%ld",//I took out the newline in this print, since I will include it in my print -Andrew
                     (unsigned)k_cyc_to_us_floor32(cycle_dt),
                     (long)ac_reading[0],
                     (long)ac_reading[1],
@@ -920,7 +923,8 @@ int main(void)
                 );
 /*Below is the call to get and print the IMU data for this specific time*/
                     int IMU_mag = downsampled_IMU();
-                    printk(" IMU mag:, %d\n", IMU_mag);
+                    printk("%d,\n", IMU_mag);
+                    //Using the print here and in the funciton itself this prints: x,y,z, magnitude (all downsampled)
 /*Above is the call to get and print the IMU data for this specific time*/
 
 
