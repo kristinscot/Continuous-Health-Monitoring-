@@ -414,7 +414,7 @@ BUILD_ASSERT(T_SET_RISING_US  <= T_ON_US,  "T_SET_RISING_US must be <= T_ON_US")
 BUILD_ASSERT(T_SET_FALLING_US <= T_OFF_US, "T_SET_FALLING_US must be <= T_OFF_US");
 
 /* Sample-enable output pin you can probe on a scope */
-#define S_EN_PIN   NRF_GPIO_PIN_MAP(0, 17)
+#define S_EN_PIN   NRF_GPIO_PIN_MAP(0, 13)
 /* =================================================================== */
 
 /* LED timing output pins */
