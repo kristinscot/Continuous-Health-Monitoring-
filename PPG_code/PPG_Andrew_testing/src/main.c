@@ -369,10 +369,17 @@ static const struct adc_dt_spec adc_channels[] = {
 //CHANGE THESE PARAMETERS TO UPDATE PWM COUNTERTOP
 #define F_PWM_HZ 31250U
 #define T_PWM_NS (1000000000UL / F_PWM_HZ)
+
+
+// #define IDAC_FREQ_HZ 3 //NOTE: Right now needs to be an integer, this could easily be modified to allow non-integers
+#define IDAC_PERIOD_US 1000 * 1000 * 3
+
 //#define V_SUPPLY_mV 3300U
 #define V_SUPPLY_mV 3000U
 // #define V_REF_mV 1650U
 #define V_REF_mV 1500U
+
+
 
 #define PWM_DEV NRF_PWM0
 
@@ -880,8 +887,9 @@ int main(void)
     idac_seq[3] = PWM_SEQ_POL_INV | mv_to_pwm_cmp(0);
 
     //for idac
-    uint32_t f_IDAC = 1; //Hz
-    uint32_t T_IDAC_us = 1000000/f_IDAC;
+    // uint32_t f_IDAC = IDAC_FREQ_HZ; //Hz
+    // uint32_t T_IDAC_us = 1000000/f_IDAC;
+    uint32_t T_IDAC_us = IDAC_PERIOD_US;
     uint32_t IDAC_time_acc_us = 0;
     uint32_t IDAC_sample_count = 0;
     uint32_t ac_sum = 0;
@@ -914,12 +922,16 @@ int main(void)
             //check if cycle completed and output cycle stats
             if (st == 0) {
                 
-                printk("%u,%ld,%ld,%ld,%ld",//I took out the newline in this print, since I will include it in my print -Andrew
+                printk("%u,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
                     (unsigned)k_cyc_to_us_floor32(cycle_dt),
                     (long)ac_reading[0],
                     (long)ac_reading[1],
                     (long)ac_reading[2],
-                    (long)ac_reading[3]
+                    (long)ac_reading[3],
+                    (long)(state_DC_levels_mv[0]*SECOND_STAGE_GAIN), //Multiplying by 2nd Stage gain to convert to voltage scale after 2nd gain stage
+                    (long)(state_DC_levels_mv[1]*SECOND_STAGE_GAIN),
+                    (long)(state_DC_levels_mv[2]*SECOND_STAGE_GAIN),
+                    (long)(state_DC_levels_mv[3]*SECOND_STAGE_GAIN)
                 );
 /*Below is the call to get and print the IMU data for this specific time*/
                     int IMU_mag = downsampled_IMU();
