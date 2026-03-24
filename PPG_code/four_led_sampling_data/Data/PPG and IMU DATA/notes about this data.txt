@@ -1,0 +1,5 @@
+attemp 1 is on the wood board, the first 10 ish seconds are not great data. 
+ppg and imu move together.
+
+attempt 2 is on wood, also moving like the first one.
+the last 5 seconds of data are bad. 
