@@ -399,16 +399,16 @@ static volatile uint16_t idac_seq[4]; // {green, red, ir, off}
 
 /* ================= INITIALIZE LED HARDWARE TIMING ================== */
 
-#define T_ON_US   2000U
-#define T_OFF_US  2000U
+#define T_ON_US   5000U
+#define T_OFF_US  5000U
 
 BUILD_ASSERT(T_ON_US  >= 1000U  && T_ON_US  <= 5000U,  "T_ON_US out of range");
 BUILD_ASSERT(T_OFF_US >= 1000U  && T_OFF_US <= 5000U,  "T_OFF_US out of range");
 
 /* ==================== Sampling-enable timing ======================= */
 /* For concept testing (your request): For LPF of 5.9kHz -> 3*TAU */
-#define T_SET_RISING_US   1450U
-#define T_SET_FALLING_US  1200U
+#define T_SET_RISING_US   3000U
+#define T_SET_FALLING_US  3000U
 
 BUILD_ASSERT(T_SET_RISING_US  <= T_ON_US,  "T_SET_RISING_US must be <= T_ON_US");
 BUILD_ASSERT(T_SET_FALLING_US <= T_OFF_US, "T_SET_FALLING_US must be <= T_OFF_US");
@@ -436,8 +436,10 @@ BUILD_ASSERT(T_SET_FALLING_US <= T_OFF_US, "T_SET_FALLING_US must be <= T_OFF_US
 
 //===================== IDAC CIRCUIT PARAMETERS ======================
 //define circuit parameters
-#define R_F_KOHM 1500
-#define R_INJ_KOHM 470 //THIS IS NOT BEING USED SINCE THE IDAC IS DISCONNECTED
+#define R_F_KOHM 270
+#define R_INJ_KOHM 180 //THIS IS NOT BEING USED SINCE THE IDAC IS DISCONNECTED
+#define SECOND_STAGE_GAIN 33
+
 
 //define maximum IDAC current/voltage
 #define IDAC_CURRENT_MAX_uA (V_SUPPLY_mV/R_INJ_KOHM)
@@ -922,7 +924,7 @@ int main(void)
             //check if cycle completed and output cycle stats
             if (st == 0) {
                 
-                printk("%u,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
+                printk("%u,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,",
                     (unsigned)k_cyc_to_us_floor32(cycle_dt),
                     (long)ac_reading[0],
                     (long)ac_reading[1],
