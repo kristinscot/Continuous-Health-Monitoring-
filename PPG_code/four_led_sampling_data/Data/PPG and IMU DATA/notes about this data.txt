@@ -3,3 +3,11 @@ ppg and imu move together.
 
 attempt 2 is on wood, also moving like the first one.
 the last 5 seconds of data are bad. 
+
+attempt 3, is also on wood, with movement, there are a few regions of bad data that can be seen by plotting it.
+about 1.5 minutes total of data.
+
+attempt 4: same methedology as the others. This one includes 20 seconds of no motion data at the start.
+
+attempt 5: this one was index the other were middle finger.
+at around 15 seconds the elbow was lifted to move so data before that is bad cannt be compared to the movement data.
