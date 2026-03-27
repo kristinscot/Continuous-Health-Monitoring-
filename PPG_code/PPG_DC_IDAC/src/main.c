@@ -44,9 +44,13 @@ static const struct adc_dt_spec adc_channels[] = {
 //CHANGE THESE PARAMETERS TO UPDATE PWM COUNTERTOP
 #define F_PWM_HZ 31250U
 #define T_PWM_NS (1000000000UL / F_PWM_HZ)
+
+// #define IDAC_FREQ_HZ 3 //NOTE: Right now needs to be an integer, this could easily be modified to allow non-integers
+#define IDAC_PERIOD_US 1000 * 1000 * 3
+
 //#define V_SUPPLY_mV 3300U
-#define V_SUPPLY_mV 3000U
-#define V_REF_mV 1650U
+#define V_SUPPLY_mV 3300U
+#define V_REF_mV 1340U
 
 #define PWM_DEV NRF_PWM0
 
@@ -66,16 +70,16 @@ static volatile uint16_t idac_seq[4]; // {green, red, ir, off}
 
 /* ================= INITIALIZE LED HARDWARE TIMING ================== */
 
-#define T_ON_US   2000U
-#define T_OFF_US  2000U
+#define T_ON_US   5000U
+#define T_OFF_US  5000U
 
 BUILD_ASSERT(T_ON_US  >= 1000U  && T_ON_US  <= 5000U,  "T_ON_US out of range");
 BUILD_ASSERT(T_OFF_US >= 1000U  && T_OFF_US <= 5000U,  "T_OFF_US out of range");
 
 /* ==================== Sampling-enable timing ======================= */
 /* For concept testing (your request): For LPF of 5.9kHz -> 3*TAU */
-#define T_SET_RISING_US   1450U
-#define T_SET_FALLING_US  1200U
+#define T_SET_RISING_US   3000U
+#define T_SET_FALLING_US  3000U
 
 BUILD_ASSERT(T_SET_RISING_US  <= T_ON_US,  "T_SET_RISING_US must be <= T_ON_US");
 BUILD_ASSERT(T_SET_FALLING_US <= T_OFF_US, "T_SET_FALLING_US must be <= T_OFF_US");
@@ -104,7 +108,8 @@ BUILD_ASSERT(T_SET_FALLING_US <= T_OFF_US, "T_SET_FALLING_US must be <= T_OFF_US
 //===================== IDAC CIRCUIT PARAMETERS ======================
 //define circuit parameters
 #define R_F_KOHM 470
-#define R_INJ_KOHM 470
+#define R_INJ_KOHM 330
+#define SECOND_STAGE_GAIN 1
 
 //define maximum IDAC current/voltage
 #define IDAC_CURRENT_MAX_uA (V_SUPPLY_mV/R_INJ_KOHM)
@@ -515,8 +520,9 @@ int main(void)
     idac_seq[3] = PWM_SEQ_POL_INV | mv_to_pwm_cmp(0);
 
     //for idac
-    uint32_t f_IDAC = 1; //Hz
-    uint32_t T_IDAC_us = 1000000/f_IDAC;
+    // uint32_t f_IDAC = IDAC_FREQ_HZ; //Hz
+    // uint32_t T_IDAC_us = 1000000/f_IDAC;
+    uint32_t T_IDAC_us = IDAC_PERIOD_US;
     uint32_t IDAC_time_acc_us = 0;
     uint32_t IDAC_sample_count = 0;
     uint32_t ac_sum = 0;
@@ -540,8 +546,8 @@ int main(void)
         if (st != last_st){
 
             if (num_samples != 0){
-                st_reading[last_st] = sample_sum/num_samples;
-                ac_reading[last_st] = ac_sum/num_samples;
+                st_reading[last_st] = sample_sum/num_samples; //This is the before amplification readings
+                ac_reading[last_st] = ac_sum/num_samples; //This is the after second stage amplification readings
                 sample_sum = 0;
                 ac_sum = 0;
                 num_samples = 0;
@@ -549,16 +555,20 @@ int main(void)
             //check if cycle completed and output cycle stats
             if (st == 0) {
                 
-                printk("%u,%ld,%ld,%ld,%ld\n",
+                printk("%u,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
                     (unsigned)k_cyc_to_us_floor32(cycle_dt),
                     (long)ac_reading[0],
                     (long)ac_reading[1],
                     (long)ac_reading[2],
-                    (long)ac_reading[3]
+                    (long)ac_reading[3],
+                    (long)(state_DC_levels_mv[0]*SECOND_STAGE_GAIN), //Multiplying by 2nd Stage gain to convert to voltage scale after 2nd gain stage
+                    (long)(state_DC_levels_mv[1]*SECOND_STAGE_GAIN),
+                    (long)(state_DC_levels_mv[2]*SECOND_STAGE_GAIN),
+                    (long)(state_DC_levels_mv[3]*SECOND_STAGE_GAIN)
                 );
 
                 for (size_t i=0; i<ARRAY_SIZE(state_DC_levels_mv); i++) {
-                    // IDAC_sample_acc_mv is the sum of the adc readings since last IDAC calculation. When divided by IDAC_sample_count, this gives the average adc reading, the amount that should be additionally offset by the IDAC next time
+                    // IDAC_sample_acc_mv is the sum of the adc readings (before amplification) since last IDAC calculation. When divided by IDAC_sample_count, this gives the average adc reading, the amount that should be additionally offset by the IDAC next time
                     IDAC_sample_acc_mv[i] += st_reading[i];
                 }
                 IDAC_time_acc_us += k_cyc_to_us_floor32(cycle_dt);
@@ -569,6 +579,7 @@ int main(void)
 
                     //calculate new IDAC DC Levels
                     for (size_t i = 0; i < ARRAY_SIZE(state_DC_levels_mv); i++) {
+                        // state_DC_levels_mv is the voltage that the IDAC is compensating for measured with the voltage scale of measuring after the first gain stage
                         state_DC_levels_mv[i] = state_DC_levels_mv[i] + (IDAC_sample_acc_mv[i]/IDAC_sample_count) - V_REF_mV;
 
                         if (state_DC_levels_mv[i] < V_REF_mV){
