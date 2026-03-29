@@ -1,0 +1,38 @@
+/ {
+	zephyr,user {
+		/* * This list maps index 0 to EMG and index 1 to Sweat.
+		 * The code uses ADC_DT_SPEC_GET_BY_IDX to find these.
+		 */
+		io-channels = <&adc 0>, <&adc 1>;
+	};
+};
+
+&adc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* * EMG Channel Configuration 
+	 * Maps to AIN0 (Physical Pin P0.02 on nRF52840)
+	 */
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = "SAADC_CH_PSELP_PSEL_AnalogInput0"; /* AIN0 */
+		zephyr,resolution = <12>;
+	};
+
+	/* * Sweat Channel Configuration 
+	 * Maps to AIN1 (Physical Pin P0.03 on nRF52840)
+	 */
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = "SAADC_CH_PSELP_PSEL_AnalogInput1"; /* AIN1 */
+		zephyr,resolution = <12>;
+	};
+};
