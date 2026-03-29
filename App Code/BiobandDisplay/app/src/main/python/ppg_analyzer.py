@@ -14,7 +14,6 @@ def process_ppg_data(raw_data_string, csv_path):
 
         # Lists for time and all LED data
         time_ms = []
-        green_mv = []
         red_mv = []
         ir_mv = []
 
@@ -22,7 +21,7 @@ def process_ppg_data(raw_data_string, csv_path):
         if not csv_path or not os.path.exists(csv_path):
             print(f"File not found: {csv_path}")
             return {
-                "points_green": [], "points_red": [], "points_ir": [],
+                "points_red": [], "points_ir": [],
                 "bpm": 0, "artStiffness": 0, "breathingRate": 0, "SpO2": 0
             }
 
@@ -30,91 +29,121 @@ def process_ppg_data(raw_data_string, csv_path):
             reader = csv.DictReader(csvfile)
             for row in reader:
                 time_ms.append(float(row["Time_ms"]))
-                green_mv.append(float(row["Green_lp"]))
                 red_mv.append(float(row["Red_lp"]))
                 ir_mv.append(float(row["IR_lp"]))
 
         # Convert to numpy arrays
         red_mv = np.array(red_mv)
         ir_mv = np.array(ir_mv)
-        green_mv = np.array(green_mv)
         t_filtered = np.array(time_ms)
 
         if len(red_mv) < 10: # Not enough data to process
              return {
-                "points_green": green_mv.tolist(), "points_red": red_mv.tolist(), "points_ir": ir_mv.tolist(),
+                "points_red": red_mv.tolist(), "points_ir": ir_mv.tolist(),
                 "bpm": 0, "artStiffness": 0, "breathingRate": 0, "SpO2": 0
             }
 
         # Remove baseline wander
-        nyquist = 0.5 * fs
         b, a = butter(2, 0.2, btype='low', fs=fs)
         baseline = filtfilt(b, a, red_mv)
 
+
         # Find heartbeat period peaks
-        filtered = red_mv - baseline
-        peaks_idx, _ = find_peaks(filtered, prominence=5)
-        
-        DISPLAY_BPM = 0
-        bpms = []
+        peaks = []
         peaks_time = []
+        filtered = red_mv - baseline
+        peaks_idx, garb = find_peaks(filtered, prominence=5)
+        bpms = []
+        DISPLAY_BPM = 0
+        i_bpm = 0
 
         for i in range(len(peaks_idx)):
+            peaks.append(filtered[peaks_idx[i]])
             peaks_time.append(t_filtered[peaks_idx[i]])
             if i > 0:
                 intervals = (peaks_time[i] - peaks_time[i-1])*10**(-3)
-                if intervals > 0:
-                    inst_bpm = 60 / intervals
-                    bpms.append(inst_bpm)
-                    if len(bpms) > 1 and abs(bpms[-1] - bpms[-2]) > 5:
-                        DISPLAY_BPM = bpms[-1]
-                    elif len(bpms) == 1:
-                        DISPLAY_BPM = inst_bpm
+                inst_bpm = 60 / intervals
+                bpms.append(inst_bpm)
+                if i_bpm > 0:
+                    if abs(bpms[i_bpm] - bpms[i_bpm-1]) > 5:
+                        DISPLAY_BPM = bpms[i_bpm]
+                i_bpm += 1
 
         # Find systolic and diastolic peaks for arterial stiffness
-        DISPLAY_AS = 0
-        filtered_AS = filtered * -1
-        peaks_idx_AS, _ = find_peaks(filtered_AS, prominence=0.01)
+        peaks_AS = []
         peaks_AS_time = []
-
+        as_list = []
+       
+        time_diff = 0
+        filtered_AS = filtered*-1
+        peaks_idx_AS, garbAS = find_peaks(filtered_AS, prominence=0.01)
         for i in range(len(peaks_idx_AS)):
             if filtered_AS[peaks_idx_AS[i]] > 0:
+                peaks_AS.append(filtered_AS[peaks_idx_AS[i]])
                 peaks_AS_time.append(t_filtered[peaks_idx_AS[i]])
-
-        for i in range(len(peaks_AS_time)):
+                
+        for i in range(len(peaks_AS)):
             if i > 0:
                 time_diff = peaks_AS_time[i] - peaks_AS_time[i-1]
-                if 0 < time_diff < 450:
-                    DISPLAY_AS = INPUT_HEIGHT / (time_diff * 0.001)
+                if time_diff < 450:
+                    arterialStiffness = INPUT_HEIGHT / (time_diff*0.001)
+                    as_list.append(arterialStiffness)
+                    print("V:", round(peaks_AS[i],2), "\tt1:", round(peaks_AS_time[i-1],2), "\tt2:", round(peaks_AS_time[i],2), "\ttd:", round(time_diff,2), "\tAS:", round(arterialStiffness,2))   
+                    DISPLAY_AS = np.mean(as_list)
 
         # Find breathing rate
-        d, c = butter(2, [0.15, 0.4], btype='band', fs=fs)
-        breathing_mod = filtfilt(d, c, green_mv)
-        peaks_breathing, _ = find_peaks(breathing_mod, prominence=0.01)
-        DISPLAY_BR = 0
-        for i in range(len(peaks_breathing)):
-            if i > 0:
-                intervals = (t_filtered[peaks_breathing[i]] - t_filtered[peaks_breathing[i-1]])*10**(-3)
-                if intervals > 0:
-                    inst_breathing_rate = 60 / intervals
-                    if DISPLAY_BR == 0 or abs(inst_breathing_rate - DISPLAY_BR) < 5:
-                        DISPLAY_BR = inst_breathing_rate
+        breathing_rate = []
+        d, c = butter(2, 0.2, btype='low', fs=fs)
+        breathing_mod = filtfilt(d, c, ir_mv)
+        breathing_peaks_idx, garb_breathing = find_peaks(breathing_mod, prominence=0.001)
+
+        for i in range(len(breathing_peaks_idx)):
+            if i > 0 and i < len(breathing_peaks_idx):
+                DISPLAY_BR =    60 / ((time_ms[breathing_peaks_idx[i]] - time_ms[breathing_peaks_idx[i-1]])*0.001)
+                breathing_rate.append(DISPLAY_BR)
 
         # Calculate SpO2
-        DISPLAY_SPO2 = 0
         if len(red_mv) > 0 and len(ir_mv) > 0:
-            red_ac = np.std(red_mv)
-            ir_ac = np.std(ir_mv)
-            red_dc = np.mean(red_mv)
-            ir_dc = np.mean(ir_mv)
+
+            red = np.array(red_mv)
+            ir = np.array(ir_mv)
+
+            peaks_red, peaks_red_time = peaks_function(red_mv, time_ms, 1)
+            troughs_red, troughs_red_time = peaks_function(red_mv, time_ms, -1)
+            peaks_ir, peaks_ir_time = peaks_function(ir_mv, time_ms, 1)
+            troughs_ir, troughs_ir_time = peaks_function(ir_mv, time_ms, -1)
+
+            red_ac_list = []
+            red_ac = 0
+            ir_ac_list = []
+            ir_ac = 0
+            most_recent_ir_ac = 0
+            most_recent_red_ac = 0
+
+            for i in range(min(len(peaks_red), len(troughs_red))):
+                print('Peaks:', peaks_red[i], peaks_red_time[i], '\tTroughs:', troughs_red[i], troughs_red_time[i])
+                red_ac = peaks_red[i] - troughs_red[i]
+                red_ac_list.append(round(red_ac,6))
+                print('red_ac',red_ac)
+
+            for i in range(min(len(peaks_ir), len(troughs_ir))):
+                print('Peaks:', peaks_ir[i], peaks_ir_time[i], '\tTroughs:', troughs_ir[i], troughs_ir_time[i])
+                ir_ac = peaks_ir[i] - troughs_ir[i]
+                ir_ac_list.append(round(ir_ac,6))
+                print('ir_ac',ir_ac)
+
+            red_dc = np.mean(red)
+            ir_dc = np.mean(ir)
 
             if red_dc > 0 and ir_dc > 0:
                 R = (red_ac/red_dc) / (ir_ac/ir_dc)
                 spo2 = 110 - 25 * R
-                DISPLAY_SPO2 = np.clip(spo2, 70, 100)
+                spo2 = np.clip(spo2, 70, 100)
+                print(f"Estimated SpO2: {spo2:.2f}%")
+                DISPLAY_SPO2 = spo2
 
+        
         return {
-            "points_green": green_mv.tolist(),
             "points_red": red_mv.tolist(),
             "points_ir": ir_mv.tolist(),
             "bpm": float(DISPLAY_BPM),
@@ -126,6 +155,6 @@ def process_ppg_data(raw_data_string, csv_path):
     except Exception as e:
         print(f"Error processing PPG data: {e}")
         return {
-            "points_green": [], "points_red": [], "points_ir": [],
+            "points_red": [], "points_ir": [],
             "bpm": 0, "artStiffness": 0, "breathingRate": 0, "SpO2": 0
         }
