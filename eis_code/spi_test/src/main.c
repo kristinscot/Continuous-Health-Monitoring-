@@ -26,13 +26,13 @@ static const struct gpio_dt_spec reset_gpio = {
 
 static const struct gpio_dt_spec int_gpio = {
     .port = DEVICE_DT_GET(DT_NODELABEL(gpio0)),
-    .pin = 31,
+    .pin = 24,
     .dt_flags = GPIO_ACTIVE_HIGH
 };
 
 static const struct gpio_dt_spec cs_gpio = {
     .port = DEVICE_DT_GET(DT_NODELABEL(gpio0)),
-    .pin = 15,
+    .pin = 20,
     .dt_flags = GPIO_ACTIVE_LOW
 };
 
