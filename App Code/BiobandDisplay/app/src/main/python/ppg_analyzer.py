@@ -3,6 +3,16 @@ from scipy.signal import find_peaks, butter, filtfilt
 import csv
 import os
 
+def peaks_function(signal, time, sign):
+    peaks = []
+    peaks_time = []
+    peaks_index, garbage = find_peaks(sign*signal, prominence=0.2)
+    for i in range(len(peaks_index)):
+        peaks.append(signal[peaks_index[i]])
+        peaks_time.append(time[peaks_index[i]])
+
+    return peaks, peaks_time
+    
 def process_ppg_data(raw_data_string, csv_path):
     """
     Processes PPG data. 
