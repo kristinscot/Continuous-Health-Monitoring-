@@ -17,7 +17,7 @@ BT_UUID_INIT_128(0x11,0x32,0x54,0x76,0x98,0xba,0xdc,0xfe,
 
 /* ---- Data ---- */
 
-#define BLOCK_SIZE 10
+#define BLOCK_SIZE 80
 
 static uint16_t counter_block[BLOCK_SIZE];
 static uint16_t counter = 0;

@@ -168,36 +168,4 @@ int eis_run_sweep(const eis_config_t *cfg, eis_result_t *result);
  */
 void eis_print_results(const eis_result_t *result);
 
-/* ---------- Circuit Model Fitting ----------------------------------- */
-
-/**
- * @brief Extracted Randles circuit parameters from Nyquist circle fit.
- */
-typedef struct {
-    float rs_ohms;      /**< Series (solution) resistance Rs (Ω) */
-    float rct_ohms;     /**< Charge transfer resistance Rct (Ω) */
-    float cdl_farads;   /**< Double-layer capacitance Cdl (F) */
-    float fit_center_x; /**< Circle center X coordinate */
-    float fit_center_y; /**< Circle center Y coordinate */
-    float fit_radius;   /**< Circle radius */
-    float f_peak_hz;    /**< Frequency at max -Zimag */
-} eis_randles_t;
-
-/**
- * @brief Fit a Randles equivalent circuit to the sweep data.
- *
- * Performs an algebraic circle fit on the Nyquist plot (Zreal vs -Zimag)
- * to extract Rs, Rct, and Cdl.
- *
- * @param result   Pointer to the sweep result data.
- * @param randles  Pointer to the output Randles parameters.
- * @return 0 on success, -1 if fit fails.
- */
-int eis_fit_randles(const eis_result_t *result, eis_randles_t *randles);
-
-/**
- * @brief Print the extracted Randles circuit parameters.
- */
-void eis_print_randles(const eis_randles_t *randles);
-
 #endif /* AD5940_EIS_H */

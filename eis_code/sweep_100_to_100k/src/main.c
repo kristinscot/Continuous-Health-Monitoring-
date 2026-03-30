@@ -34,7 +34,7 @@ static eis_config_t build_config(void)
     /* ---- Frequency sweep ---- */
     cfg.freq_start_hz   = 100.0f;      /* 100 Hz */
     cfg.freq_stop_hz    = 100000.0f;   /* 100 kHz */
-    cfg.num_points      = 40;          /* 40 log-spaced points */
+    cfg.num_points      = 100;          /* Reduced for debugging */
 
     /* ---- Excitation ---- */
     cfg.excit_amplitude = 33;          /* ~10 mV peak (small signal for bio) */
@@ -54,10 +54,7 @@ static eis_config_t build_config(void)
 
     /* ---- DFT ----
      * More DFT points = better SNR but slower.
-     *   DFTNUM_4096  -> ~25 ms/point, good for quick scans
-     *   DFTNUM_8192  -> ~50 ms/point, better accuracy
-     *   DFTNUM_16384 -> ~100 ms/point, best accuracy (ADI library default)
-     */
+     * DFTNUM_4096 is a good balance for biosensing. */
     cfg.dft_num = DFTNUM_16384;
 
     /* ---- PGA gain ---- */
@@ -164,14 +161,10 @@ int main(void)
     /* ---- Step 9: Output results ---- */
     eis_print_results(&result);
 
-    /* ---- Step 10: Fit Randles equivalent circuit ---- */
-    static eis_randles_t randles;
-    ret = eis_fit_randles(&result, &randles);
-    if (ret == 0) {
-        eis_print_randles(&randles);
-    } else {
-        printk("Randles circuit fit failed.\n");
-    }
+    printk("========================================\n");
+    printk(" Sweep complete. Copy CSV data above\n");
+    printk(" and plot Zimag vs Zreal for Nyquist.\n");
+    printk("========================================\n");
 
     /*
      * Optional: continuous sweep loop.
