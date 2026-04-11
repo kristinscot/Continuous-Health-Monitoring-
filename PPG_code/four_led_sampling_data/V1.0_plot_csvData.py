@@ -17,7 +17,7 @@ US_IN_S = 1000000
 
 # YOU NEED TO REPLACE THIS TO BE THE FILE YOU WANT (Note: Using absolute file path right now) SHOULD BE FORMATTED ONE
 dataFolderPath = "/home/ciaran-mcdj/Documents/School/ELEC4908_Capstone/Code/Continuous-Health-Monitoring-/PPG_code/four_led_sampling_data/Data/"
-dataFilename = "AllLEDs40Reads1-25samplesPerS-28012026_152503_formatted.txt"
+dataFilename = "AllLEDs40Reads2-Dark-25samplesPerS-28012026_153832_formatted.txt"
 # NOTE: Output file name is same place as input with same name with '_formatted' at end
 if dataFilename[-14:] != "_formatted.txt":
     print("WARNING: Your data_filename doesn't end with '_formatted.txt', make sure you ran this data through convert_data_to_csv")
@@ -128,9 +128,10 @@ with open(dataFolderPath+dataFilename, "r") as csvFile:
 
 fig = plt.figure()
 ax = fig.add_subplot()
-ax.set_title("Data measured from PPG sensor")
-ax.set_xlabel("Time (s)")
-ax.set_ylabel("Voltage (mV)")
+ax.set_title("Data measured from PPG sensor", fontsize=20)
+ax.set_xlabel("Time (s)", fontsize=16)
+ax.set_ylabel("Voltage (mV)", fontsize=16)
+ax.tick_params(labelsize=11)
 
 
 
@@ -187,13 +188,18 @@ for state in [0,1,2,3]:
 
 
 
+# ANNOTATIONS ON 'AllLEDs40Reads2-Dark-25samplesPerS-28012026_153832_formatted.txt'
+ax.annotate("Wrist", (69,2950), fontsize=12)
+ax.annotate("Index Finger", (82,2950), fontsize=12)
+ax.annotate("Thumb", (97,2950), fontsize=12)
     
 
 
 
 
 
-leg = plt.legend()
+leg = plt.legend(fontsize=12)
+leg.set_draggable(True)
 
 activateLegendLineToggling(fig, legLines=leg.get_lines(), togglingLines=lines)
 

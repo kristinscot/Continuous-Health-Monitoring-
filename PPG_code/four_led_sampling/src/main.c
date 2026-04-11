@@ -216,7 +216,7 @@ static void print_state_info(int state, uint32_t stateStartTime[4], uint32_t sta
     /////// fflush(stdout);
 }
 
-// For some reason these make it crash for BUFFER_SIZE ~12-15 and more if in main (TODO - should probably use Malloc, and calculate BUFFER_SIZE based on longest state time and adc_read_delay)
+// For some reason these make it crash for BUFFER_SIZE ~12-15 and more if in main (Not an issue with it here) (TODO - should probably use Malloc, and calculate BUFFER_SIZE based on longest state time and adc_read_delay)
 int32_t readsBuffer[4][BUFFER_SIZE]; //mV //NOTE: Only need this for initial tests while we want to see all measurements - TODO Could make it smaller
 uint32_t readsBufferTimestamps[4][BUFFER_SIZE]; //us 
 

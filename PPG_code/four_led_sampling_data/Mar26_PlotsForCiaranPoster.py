@@ -156,28 +156,26 @@ print(dcAmplitude_uA)
 lines:list[Line2D] = [] #List of lines that get made for use with the legend
 
 # MAKE PLOT OF RAW DATA
-fig = plt.figure()
-ax = fig.add_subplot()
-ax.set_title("Measured PPG Signal", fontsize=18)
-ax.set_xlabel("Time (s)", fontsize=16)
-ax.set_ylabel("Photodiode Signal (uA)", fontsize=16)
+# fig = plt.figure()
+# ax = fig.add_subplot()
+# ax.set_title("Measured PPG Signal", fontsize=18)
+# ax.set_xlabel("Time (s)", fontsize=16)
+# ax.set_ylabel("Photodiode Signal (uA)", fontsize=16)
 
-# AC
-for i in range(4):
-    acLine, = ax.plot(np.divide(sampleTime_us, 10**6), -acAmplitude_uA[:,i], linestyle="-", marker=".", label="AC signal", color=colours[i])
-    lines.append(acLine)
+# # AC
+# for i in range(4):
+#     acLine, = ax.plot(np.divide(sampleTime_us, 10**6), -acAmplitude_uA[:,i], linestyle="-", marker=".", label="AC signal", color=colours[i])
+#     lines.append(acLine)
 
-# DC
-for i in range(4):
-    dcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -dcAmplitude_uA[:,i], linestyle="-", marker=".", label="DC signal", color=colours[i])
-    lines.append(dcLine)
+# # DC
+# for i in range(4):
+#     dcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -dcAmplitude_uA[:,i], linestyle="-", marker=".", label="DC signal", color=colours[i])
+#     lines.append(dcLine)
 
-# AC+DC
-for i in range(4):
-    acdcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -np.add(acAmplitude_uA[:,i],dcAmplitude_uA[:,i]), linestyle="-", marker=".", label="DC+AC signal", color=colours[i])
-    lines.append(acdcLine)
-
-
+# # AC+DC
+# for i in range(4):
+#     acdcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -np.add(acAmplitude_uA[:,i],dcAmplitude_uA[:,i]), linestyle="-", marker=".", label="DC+AC signal", color=colours[i])
+#     lines.append(acdcLine)
 
 
 
@@ -186,7 +184,9 @@ for i in range(4):
 
 
 
-# # # PLOT ZOOMED IN AC + DC DATA WITH LINE BREAKS SO ALL IS VISIBLE
+
+
+# # # PLOT ZOOMED IN AC + DC DATA WITH LINE BREAKS SO ALL IS VISIBLE (copied then modified from matplotlib example)
 # weightOfPlot1 = 1
 # weightOfPlot2 = 1
 # weightOfPlot3 = 1
@@ -242,6 +242,79 @@ for i in range(4):
 # ax2.plot([0, 1], [0, 0], transform=ax2.transAxes, **kwargs)
 # ax3.plot([0, 1], [1, 1], transform=ax3.transAxes, **kwargs)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # PLOT ZOOMED IN AC vs AC+DC DATA ONLY FOR IR TO SHOW IDAC DC COMPENSATION
+weightOfPlot1 = 1
+weightOfPlot2 = 1
+rangeOfWeight1_nA = 0.15
+minPlot1 = -0.1
+minPlot2 = -1.85
+boundsOfTime = (28.5,38.5)  #(5, 20)
+
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [weightOfPlot1, weightOfPlot2]})
+fig.subplots_adjust(hspace=0.1)  # adjust space between Axes
+ax1.set_title("Measured PPG Signal", fontsize=18)
+ax2.set_xlabel("Time (s)", fontsize=16)
+ax2.set_ylabel("                              Photodiode Signal (uA)", fontsize=16)
+
+# plot the same data on both Axes
+for ax in [ax1, ax2]:
+    for i in [1]: #Only plotting one colour
+        if i == 0:
+            # Don't plot the green one
+            continue
+        # AC
+        acLine, = ax.plot(np.divide(sampleTime_us, 10**6), -acAmplitude_uA[:,i], linestyle="-", marker="o", label="AC signal", color=colours[i])
+        lines.append(acLine)
+
+        # DC 
+        dcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -dcAmplitude_uA[:,i], linestyle="-", marker=".", label="DC signal", color=colours[i])
+        lines.append(dcLine)
+
+        # AC+DC
+        acdcLine, = ax.plot(np.divide(sampleTime_us, 10**6), -np.add(acAmplitude_uA[:,i],dcAmplitude_uA[:,i]), linestyle="-", marker="^", label="DC+AC signal", color=colours[i])
+        lines.append(acdcLine)
+
+# zoom-in / limit the view to different portions of the data
+ax1.set_ylim(minPlot1, minPlot1+rangeOfWeight1_nA*weightOfPlot1)
+ax2.set_ylim(minPlot2, minPlot2+rangeOfWeight1_nA*weightOfPlot2) 
+ax1.set_xlim(boundsOfTime[0], boundsOfTime[1]) #All x-axes are linked
+
+# hide the spines between axes
+ax1.spines.bottom.set_visible(False)
+ax2.spines.top.set_visible(False)
+ax1.xaxis.tick_top()
+ax1.tick_params(labeltop=False)  # don't put tick labels at the top
+ax2.xaxis.tick_bottom()
+
+# Now, let's turn towards the cut-out slanted lines.
+# We create line objects in axes coordinates, in which (0,0), (0,1),
+# (1,0), and (1,1) are the four corners of the Axes.
+# The slanted lines themselves are markers at those locations, such that the
+# lines keep their angle and position, independent of the Axes size or scale
+# Finally, we need to disable clipping.
+
+d = .5  # proportion of vertical to horizontal extent of the slanted line
+kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
+              linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
+ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+ax2.plot([0, 1], [0, 0], transform=ax2.transAxes, **kwargs)
 
 
 

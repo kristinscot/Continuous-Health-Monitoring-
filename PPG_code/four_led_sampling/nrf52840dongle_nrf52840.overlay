@@ -1,4 +1,4 @@
-// Copied from 'digital_out' application, configures the 3 LEDs (TODO - get high drive)
+// Copied from 'digital_out' application, configures the 3 LEDs
 / {
     // LED GPIO OUTPUT PINS SETUP
     aliases {
@@ -9,8 +9,6 @@
 
     leds {
         compatible = "gpio-leds";
-
-        // TODO - switch these to pins that support high drive
 
         led0_node: led0 {
             gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; //Green

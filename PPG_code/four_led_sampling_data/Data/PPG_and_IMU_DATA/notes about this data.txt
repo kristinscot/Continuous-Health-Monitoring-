@@ -9,7 +9,7 @@ about 1.5 minutes total of data.
 
 attempt 4: same methedology as the others. This one includes 20 seconds of no motion data at the start.
 
-attempt 5: this one was index the other were middle finger.
+attempt 5: this one was index the others were middle finger.
 at around 15 seconds the elbow was lifted to move so data before that is bad cannt be compared to the movement data.
 
 Note: Removed a bit at start of data (~<1s), since has some weird prints at start. The data is now clean for all 5 attempts
